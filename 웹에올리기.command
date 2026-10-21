@@ -26,17 +26,21 @@ else
     arm64) GH_ARCH="arm64" ;;          # 애플 실리콘
     *)     GH_ARCH="amd64" ;;          # 인텔
   esac
-  GH_DIR="/tmp/gh_${GH_VER}_macOS_${GH_ARCH}"
+  # /tmp 는 컴퓨터를 껐다 켜면 지워져서, 홈 폴더 안에 보관합니다
+  TOOLS="$HOME/.gchord-tools"
+  GH_DIR="${TOOLS}/gh_${GH_VER}_macOS_${GH_ARCH}"
   GH="${GH_DIR}/bin/gh"
 
   if ! "$GH" --version >/dev/null 2>&1; then
     echo ""
     echo "GitHub 도구를 내려받는 중… (${GH_ARCH}, 처음 한 번만)"
-    rm -rf "$GH_DIR" "/tmp/gh_${GH_ARCH}.zip"
+    mkdir -p "$TOOLS"
+    rm -rf "$GH_DIR" "${TOOLS}/gh_${GH_ARCH}.zip"
     curl -fL --progress-bar \
       "https://github.com/cli/cli/releases/download/v${GH_VER}/gh_${GH_VER}_macOS_${GH_ARCH}.zip" \
-      -o "/tmp/gh_${GH_ARCH}.zip" || die "내려받지 못했습니다. 인터넷 연결을 확인해 주세요."
-    unzip -qo "/tmp/gh_${GH_ARCH}.zip" -d /tmp || die "압축을 풀지 못했습니다."
+      -o "${TOOLS}/gh_${GH_ARCH}.zip" || die "내려받지 못했습니다. 인터넷 연결을 확인해 주세요."
+    unzip -qo "${TOOLS}/gh_${GH_ARCH}.zip" -d "$TOOLS" || die "압축을 풀지 못했습니다."
+    rm -f "${TOOLS}/gh_${GH_ARCH}.zip"
     xattr -dr com.apple.quarantine "$GH_DIR" 2>/dev/null
   fi
   "$GH" --version >/dev/null 2>&1 || die "GitHub 도구를 실행할 수 없습니다. (uname: $(uname -m))"
