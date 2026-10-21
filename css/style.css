@@ -56,6 +56,7 @@ body {
 .btn-primary { background: linear-gradient(180deg, #7bed9f, #2ed573); color: #10311d; }
 .btn-secondary { background: linear-gradient(180deg, #70a1ff, #1e90ff); color: #fff; }
 .btn-back { background: #cfd8e8; }
+a.btn { text-decoration: none; display: inline-block; }
 .btn-danger { background: linear-gradient(180deg, #ff9aa6, #ee5a6f); color: #fff; }
 .btn.on { background: linear-gradient(180deg, #ffd97a, #ffa502); color: #43290a; }
 

@@ -25,6 +25,7 @@
       mode: $('modeNote'),
       offlineBtn: $('btnOffline'),
       offlineState: $('offlineState'),
+      guide: $('btnGuide'),
     };
 
     GEditor.init({
@@ -149,6 +150,7 @@
     el.mode.classList.toggle('hidden', rw);
     el.addSong.classList.toggle('hidden', !rw);
     el.importChart.classList.toggle('hidden', !rw);
+    el.guide.classList.toggle('hidden', !rw);   // 사용법은 맥에서 채보할 때만 필요
   }
 
   /* ---------- song list ---------- */

@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>곡 추가하는 법 — 기타 코드 리듬</title>
+<style>
+  :root {
+    --ink: #1c2430; --muted: #6b7a90; --line: #dfe5ee; --bg: #f6f8fc;
+    --blue: #1e90ff; --green: #16a34a; --red: #e45163; --amber: #e8900c; --card: #fff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif;
+    background: var(--bg); color: var(--ink); line-height: 1.75;
+    padding: 40px 20px 80px; -webkit-text-size-adjust: 100%;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; }
+
+  header { text-align: center; margin-bottom: 36px; }
+  header .icon { font-size: 52px; }
+  h1 { font-size: 30px; font-weight: 800; letter-spacing: -.5px; margin: 6px 0 8px; }
+  header p { color: var(--muted); font-size: 15px; }
+
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 16px;
+    padding: 24px 26px; margin-bottom: 18px; box-shadow: 0 1px 3px rgba(20,30,50,.05);
+  }
+  .step-head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .num {
+    flex: none; width: 34px; height: 34px; border-radius: 50%;
+    background: var(--blue); color: #fff; font-weight: 800; font-size: 17px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  h2 { font-size: 20px; font-weight: 800; letter-spacing: -.3px; }
+  h3 { font-size: 15px; font-weight: 800; margin: 18px 0 6px; color: #33415c; }
+  p, li { font-size: 15px; }
+  ul, ol { padding-left: 22px; margin: 8px 0; }
+  li { margin-bottom: 5px; }
+  .muted { color: var(--muted); font-size: 13.5px; }
+
+  b.btn {
+    display: inline-block; background: #eef4ff; border: 1px solid #cadcff; color: #1b4fa8;
+    border-radius: 7px; padding: 1px 8px; font-size: 14px; font-weight: 700; white-space: nowrap;
+  }
+  b.btn.green { background: #e8f8ee; border-color: #b4e3c6; color: #136c36; }
+  b.btn.amber { background: #fff4e2; border-color: #f3d6a4; color: #8a5600; }
+  kbd {
+    display: inline-block; background: #fff; border: 1px solid #c8d1de; border-bottom-width: 2px;
+    border-radius: 6px; padding: 1px 8px; font: inherit; font-size: 13.5px; font-weight: 700;
+    min-width: 26px; text-align: center;
+  }
+
+  .tip {
+    background: #fffaf0; border: 1px solid #f3dfb8; border-left: 4px solid var(--amber);
+    border-radius: 10px; padding: 12px 16px; margin: 14px 0; font-size: 14px;
+  }
+  .tip b { color: #8a5600; }
+  .warn { background: #fff5f6; border-color: #f6ced4; border-left-color: var(--red); }
+  .warn b { color: #a32638; }
+
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 14.5px; }
+  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-size: 12.5px; font-weight: 700; }
+  td:first-child { width: 120px; white-space: nowrap; }
+
+  .flow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0 4px; }
+  .flow span {
+    background: #eef4ff; border: 1px solid #cadcff; color: #1b4fa8;
+    border-radius: 999px; padding: 5px 14px; font-size: 13.5px; font-weight: 700;
+  }
+  .flow i { color: #9db0cc; font-style: normal; font-weight: 800; }
+
+  .faq { border-top: 1px solid var(--line); padding-top: 14px; margin-top: 14px; }
+  .faq:first-of-type { border-top: 0; padding-top: 0; margin-top: 0; }
+  .faq .q { font-weight: 800; margin-bottom: 4px; }
+  footer { text-align: center; color: var(--muted); font-size: 13px; margin-top: 30px; }
+
+  @media print {
+    body { background: #fff; padding: 0; }
+    .card { box-shadow: none; break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="icon">🎸</div>
+  <h1>곡 추가하는 법</h1>
+  <p>mp3를 넣고 코드를 찍어서 수업용 곡을 만드는 순서입니다.</p>
+</header>
+
+<div class="card">
+  <div class="step-head"><div class="num">1</div><h2>게임 열기</h2></div>
+  <p>이 폴더의 <b class="btn">기타게임.command</b> 를 더블클릭하면 브라우저가 열립니다.</p>
+  <div class="tip warn">
+    <b>터미널에 ⚠️ 경고가 뜬다면</b> — 아이클라우드가 음원을 컴퓨터에서 비운 상태입니다.
+    Finder에서 <b>songs</b> 폴더를 열고 구름 아이콘(⬇)을 눌러 받아두세요. 수업 전에 꼭 확인하세요.
+  </div>
+</div>
+
+<div class="card">
+  <div class="step-head"><div class="num">2</div><h2>mp3 넣기</h2></div>
+  <p><b class="btn green">＋ 새 곡 추가 (mp3)</b> 를 누르고 음원 파일을 고릅니다.</p>
+  <p class="muted">고른 파일은 이 폴더의 <b>songs</b> 안으로 복사됩니다. 원본을 지워도 게임은 그대로 돌아갑니다.</p>
+</div>
+
+<div class="card">
+  <div class="step-head"><div class="num">3</div><h2>박자 맞추기 (가장 중요)</h2></div>
+  <p>마디선이 노래와 맞아야 코드가 제자리에 찍힙니다. 순서대로 하세요.</p>
+  <h3>① BPM 정하기</h3>
+  <p>곡의 BPM을 알면 <b class="btn">BPM</b> 칸에 입력합니다. 모르면 노래를 들으면서
+     <b class="btn">탭 템포</b> 버튼을 박자에 맞춰 <b>8번쯤</b> 누르세요. 자동으로 계산됩니다.</p>
+  <h3>② 첫 박 맞추기</h3>
+  <p><kbd>Space</kbd> 로 노래를 재생하다가 <b>첫 박이 나오는 순간</b>
+     <b class="btn">지금을 첫박으로</b> 를 누르세요. 파형의 큰 소리와 마디선이 겹치면 성공입니다.</p>
+  <div class="tip">
+    <b>확인 방법</b> — <b class="btn">메트로놈</b> 을 켜고 노래를 들어보세요.
+    딱딱 소리가 노래 박자와 어긋나면 BPM이나 첫박이 아직 안 맞은 겁니다.
+  </div>
+  <h3>③ 스냅 정하기</h3>
+  <p>보통 <b class="btn">1마디</b> 또는 <b class="btn">1박</b>. 코드가 박자에 딱 붙어서 찍힙니다.</p>
+</div>
+
+<div class="card">
+  <div class="step-head"><div class="num">4</div><h2>코드 찍기</h2></div>
+  <p>편한 쪽을 쓰세요.</p>
+  <h3>방법 A — 멈춰놓고 찍기 (정확함)</h3>
+  <ol>
+    <li>아래 팔레트에서 코드를 클릭 (예: <b class="btn">C</b>)</li>
+    <li>타임라인 <b>아래쪽 코드 줄</b>을 클릭하면 그 자리에 놓입니다</li>
+  </ol>
+  <h3>방법 B — 들으면서 찍기 (빠름)</h3>
+  <ol>
+    <li><kbd>Space</kbd> 로 재생</li>
+    <li>코드가 바뀌는 순간 그 <b>코드 버튼을 클릭</b> 하거나 <kbd>Enter</kbd></li>
+  </ol>
+  <div class="tip">
+    <b>참고</b> — 파형의 <b>위쪽</b>을 클릭하면 그 지점으로 이동하고,
+    <b>아래쪽 코드 줄</b>을 클릭하면 코드가 놓입니다.
+  </div>
+</div>
+
+<div class="card">
+  <div class="step-head"><div class="num">5</div><h2>고치기</h2></div>
+  <table>
+    <tr><th>하고 싶은 것</th><th>방법</th></tr>
+    <tr><td>위치 옮기기</td><td>노트를 <b>드래그</b></td></tr>
+    <tr><td>지우기</td><td>노트 클릭 후 <kbd>Delete</kbd> · 우클릭 · 아래 칩의 <b>×</b></td></tr>
+    <tr><td>코드 바꾸기</td><td>새 코드를 고른 뒤 같은 자리를 클릭</td></tr>
+    <tr><td>그 위치 듣기</td><td>아래 칩(예: <b class="btn">C 0:08</b>)을 클릭</td></tr>
+  </table>
+  <h3>단축키</h3>
+  <table>
+    <tr><td><kbd>Space</kbd></td><td>재생 / 정지</td></tr>
+    <tr><td><kbd>Enter</kbd></td><td>지금 위치에 선택한 코드 찍기</td></tr>
+    <tr><td><kbd>Delete</kbd></td><td>선택한 노트 삭제</td></tr>
+    <tr><td><kbd>←</kbd> <kbd>→</kbd></td><td>한 박씩 이동 (<kbd>Shift</kbd> 누르면 0.1초)</td></tr>
+    <tr><td><kbd>⌘</kbd>+<kbd>S</kbd></td><td>저장</td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <div class="step-head"><div class="num">6</div><h2>저장하고 확인하기</h2></div>
+  <p><b class="btn green">저장</b> 을 누르면 <b>songs 폴더에 바로 기록</b>됩니다. 따로 내보낼 필요 없습니다.</p>
+  <p><b class="btn">▶ 연주 테스트</b> 로 바로 연주해 보세요. 코드가 노래보다 이르거나 늦으면
+     3번(박자 맞추기)으로 돌아가 첫박을 다시 잡으세요.</p>
+</div>
+
+<div class="card">
+  <div class="step-head"><div class="num">7</div><h2>아이패드로 보내기</h2></div>
+  <div class="flow">
+    <span>맥에서 저장</span><i>→</i>
+    <span>웹에올리기.command</span><i>→</i>
+    <span>아이패드 새로고침</span><i>→</i>
+    <span>⬇ 오프라인 저장</span>
+  </div>
+  <p class="muted" style="margin-top:8px">
+    맥에서 저장한 것만으로는 아이패드에 넘어가지 않습니다. <b>웹에올리기</b>를 꼭 한 번 눌러주세요.<br />
+    주소: <b>https://voxhyeon-netizen.github.io/guitar-chord-rhythm/</b> · 접속 코드: <b>voxhyeon</b>
+  </p>
+  <div class="tip">
+    <b>다른 맥(맥북)은?</b> 바탕화면이 아이클라우드로 연결돼 있어 자동으로 따라갑니다.
+    단, <b>두 맥에서 동시에 채보하지 마세요.</b> 한쪽 작업이 동기화된 뒤 다른 쪽을 여세요.
+  </div>
+</div>
+
+<div class="card">
+  <h2 style="margin-bottom:14px">자주 막히는 것</h2>
+
+  <div class="faq">
+    <div class="q">코드가 노래보다 자꾸 빨라요 / 늦어요</div>
+    <p>첫박이 안 맞은 겁니다. 3번으로 돌아가 <b class="btn">지금을 첫박으로</b> 를 다시 잡으세요.
+       그래도 점점 어긋나면 BPM이 틀린 것이니 탭 템포를 다시 해보세요.</p>
+  </div>
+
+  <div class="faq">
+    <div class="q">아이들이 코드를 못 따라와요</div>
+    <p><b class="btn">⚙ 설정</b> → <b>낙하 속도</b>를 3~4초로 올리면 코드가 더 일찍 보입니다.
+       연주 중 <kbd>Space</kbd> → 속도를 <b>0.75x</b>로 낮춰도 좋습니다.</p>
+  </div>
+
+  <div class="faq">
+    <div class="q">판정이 너무 빡빡해요</div>
+    <p><b class="btn">⚙ 설정</b> → <b>판정 가능 구간(늦게)</b> 를 키우면 넉넉하게 봐줍니다.</p>
+  </div>
+
+  <div class="faq">
+    <div class="q">아이패드에 새 곡이 안 보여요</div>
+    <p>맥에서 <b class="btn">웹에올리기.command</b> 를 눌렀는지 확인하고,
+       아이패드에서 새로고침 후 <b class="btn">⬇ 오프라인 저장</b> 을 한 번 더 누르세요.</p>
+  </div>
+
+  <div class="faq">
+    <div class="q">아이패드에서 소리가 안 나요</div>
+    <p>측면 무음 스위치와 볼륨을 확인하세요. 화면을 한 번 터치해야 소리가 시작됩니다.</p>
+  </div>
+
+  <div class="faq">
+    <div class="q">곡을 지우고 싶어요</div>
+    <p>목록에서 <b class="btn">삭제</b> 를 누르면 songs 폴더에서도 지워집니다. 되돌릴 수 없으니 주의하세요.</p>
+  </div>
+</div>
+
+<footer>
+  더 자세한 내용은 같은 폴더의 <b>README.md</b> 에 있습니다.
+</footer>
+
+</div>
+</body>
+</html>

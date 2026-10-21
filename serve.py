@@ -165,6 +165,25 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         self.send_json({'ok': True})
 
 
+def check_songs():
+    """아이클라우드가 음원을 로컬에서 비웠는지(자리표시자) 확인.
+    '저장 공간 최적화'가 켜져 있으면 안 쓰던 mp3가 내려가 수업 중에 안 열릴 수 있습니다."""
+    data = read_manifest()
+    missing = []
+    for song in data.get('songs', []):
+        name = song.get('audio') or ''
+        if not name:
+            missing.append((song.get('title', '제목 없음'), '음원 없음'))
+            continue
+        path = os.path.join(SONGS_DIR, name)
+        stub = os.path.join(SONGS_DIR, '.' + name + '.icloud')
+        if os.path.exists(stub) or not os.path.exists(path):
+            missing.append((song.get('title', '제목 없음'), '아이클라우드에서 내려받아야 함'))
+        elif os.path.getsize(path) == 0:
+            missing.append((song.get('title', '제목 없음'), '파일이 비어 있음'))
+    return missing
+
+
 def already_running(port):
     try:
         with urllib.request.urlopen(f'http://127.0.0.1:{port}/index.html', timeout=1) as r:
@@ -199,6 +218,17 @@ def main():
     if ip:
         print(f'   아이패드에서(같은 와이파이):  http://{ip}:{port}/', flush=True)
     print(f'   곡 저장 위치: {SONGS_DIR}', flush=True)
+
+    bad = check_songs()
+    if bad:
+        print('', flush=True)
+        print('⚠️  바로 열 수 없는 곡이 있습니다:', flush=True)
+        for title, why in bad:
+            print(f'     · {title} — {why}', flush=True)
+        print('   Finder에서 songs 폴더를 열어 구름 아이콘(⬇)을 눌러 받아두세요.', flush=True)
+        print('   수업 전에 미리 해두면 인터넷 없이도 열립니다.', flush=True)
+
+    print('', flush=True)
     print('   종료하려면 Control+C', flush=True)
     webbrowser.open(url)
     try:
