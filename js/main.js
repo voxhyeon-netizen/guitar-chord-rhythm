@@ -1,0 +1,463 @@
+/* Screen routing, song library (songs/ folder), settings. */
+(function (global) {
+  let el = {};
+  let loadedAudioId = null;
+  let audioPick = null;     // pending <input type=file> handler
+  let lastPlayed = null;
+  let toastTimer = 0;
+
+  function $(id) { return document.getElementById(id); }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    el = {
+      home: $('screen-home'),
+      editor: $('screen-editor'),
+      play: $('screen-play'),
+      result: $('screen-result'),
+      list: $('songList'),
+      addSong: $('btnAddSong'),
+      importChart: $('btnImportChart'),
+      settings: $('btnSettings'),
+      fileAudio: $('fileAudio'),
+      fileChart: $('fileChart'),
+      toast: $('toast'),
+      settingsOverlay: $('settingsOverlay'),
+      mode: $('modeNote'),
+      offlineBtn: $('btnOffline'),
+      offlineState: $('offlineState'),
+    };
+
+    GEditor.init({
+      onBack: function () { show('home'); renderList(); },
+      onSave: saveSongFromEditor,
+      onPlaytest: function (song) { startPlay(song); },
+      onReplaceAudio: function (song) {
+        pickAudioFor(song, function () {
+          GEditor.refreshAudio();
+          toast('mp3를 바꿨어요.');
+        });
+      },
+    });
+
+    GPlay.init({
+      onExit: function () { show('home'); renderList(); },
+      onFinish: showResult,
+    });
+
+    el.addSong.addEventListener('click', function () { pickAudioFor(null, null); });
+    el.importChart.addEventListener('click', function () { el.fileChart.click(); });
+    el.settings.addEventListener('click', openSettings);
+    el.fileAudio.addEventListener('change', onAudioChosen);
+    el.fileChart.addEventListener('change', onChartChosen);
+
+    $('resAgain').addEventListener('click', function () {
+      if (lastPlayed) startPlay(lastPlayed);
+    });
+    $('resHome').addEventListener('click', function () { show('home'); renderList(); });
+
+    unlockAudioOnFirstTouch();
+    setupOffline();
+    wireSettings();
+    show('home');
+
+    GStore.ping().then(function () { return GStore.loadLibrary(); }).then(function () {
+      renderList();
+      updateMode();
+      reportOffline();
+    });
+  });
+
+  /* iOS keeps audio silent until a real gesture resumes the context. */
+  function unlockAudioOnFirstTouch() {
+    try {
+      if (navigator.audioSession) navigator.audioSession.type = 'playback';
+    } catch (e) { /* ignore */ }
+    const unlock = function () { GAudio.resume(); };
+    document.addEventListener('pointerdown', unlock, { once: true });
+    document.addEventListener('touchstart', unlock, { once: true });
+  }
+
+  /* ---------- 오프라인 저장 ---------- */
+  const MEDIA_CACHE = 'gchord-media-v1';
+
+  function setupOffline() {
+    /* 웹에 올렸을 때(https)만 오프라인 저장을 씁니다.
+       맥에서 채보할 때는 캐시가 끼어들면 수정이 바로 안 보일 수 있어 끕니다. */
+    if (!('serviceWorker' in navigator) || location.protocol !== 'https:') return;
+    navigator.serviceWorker.register('sw.js').catch(function () { /* ignore */ });
+    el.offlineBtn.classList.remove('hidden');
+    el.offlineBtn.addEventListener('click', cacheEverything);
+    reportOffline();
+  }
+
+  function reportOffline() {
+    if (!window.caches || el.offlineBtn.classList.contains('hidden')) return;
+    caches.open(MEDIA_CACHE).then(function (c) { return c.keys(); }).then(function (keys) {
+      const songs = keys.filter(function (r) { return !/songs\.json$/.test(r.url); }).length;
+      el.offlineState.classList.remove('hidden');
+      el.offlineState.innerHTML = songs
+        ? '오프라인 저장됨 — <b>' + songs + '곡</b> · 인터넷 없이도 연주할 수 있어요'
+        : '아직 오프라인 저장을 하지 않았어요. 수업 전에 <b>⬇ 오프라인 저장</b>을 눌러두세요.';
+    }).catch(function () { /* ignore */ });
+  }
+
+  function cacheEverything() {
+    if (!window.caches) return;
+    el.offlineBtn.disabled = true;
+    el.offlineState.classList.remove('hidden');
+    el.offlineState.textContent = '저장하는 중…';
+
+    const urls = GStore.list().map(function (s) { return GStore.audioUrl(s); })
+      .filter(Boolean).concat(['songs/songs.json']);
+
+    caches.open(MEDIA_CACHE).then(function (cache) {
+      let done = 0;
+      return Promise.all(urls.map(function (u) {
+        return cache.add(u).then(function () {
+          done++;
+          el.offlineState.textContent = '저장하는 중… ' + done + '/' + urls.length;
+        }).catch(function () { /* 한 곡이 실패해도 나머지는 계속 */ });
+      }));
+    }).then(function () {
+      toast('이 기기에 저장했어요. 이제 인터넷 없이도 열려요.');
+      reportOffline();
+    }).catch(function () {
+      el.offlineState.textContent = '저장하지 못했어요.';
+    }).then(function () {
+      el.offlineBtn.disabled = false;
+    });
+  }
+
+  /* ---------- screens ---------- */
+  function show(name) {
+    ['home', 'editor', 'play', 'result'].forEach(function (k) {
+      el[k].classList.toggle('active', k === name);
+    });
+    if (name !== 'editor') GEditor.close();
+  }
+
+  function toast(msg) {
+    el.toast.textContent = msg;
+    el.toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.toast.classList.remove('show'); }, 2600);
+  }
+
+  /* 읽기 전용 = 곡을 폴더에 쓸 수 없는 환경 (아이패드/웹에 올린 경우) */
+  function updateMode() {
+    const rw = GStore.canWrite();
+    el.mode.classList.toggle('hidden', rw);
+    el.addSong.classList.toggle('hidden', !rw);
+    el.importChart.classList.toggle('hidden', !rw);
+  }
+
+  /* ---------- song list ---------- */
+  function renderList() {
+    const songs = GStore.list().sort(function (a, b) {
+      return (a.title || '').localeCompare(b.title || '', 'ko');
+    });
+    const rw = GStore.canWrite();
+    el.list.innerHTML = '';
+
+    if (!songs.length) {
+      const d = document.createElement('div');
+      d.className = 'empty-note';
+      d.innerHTML = rw
+        ? '아직 곡이 없어요.<br><b>＋ 새 곡 추가</b>를 눌러 mp3를 고르고,<br>채보 화면에서 코드를 찍어보세요.'
+        : '이 기기에는 곡이 없어요.<br>맥에서 곡을 만든 뒤 <b>폴더를 통째로</b> 옮기거나 웹에 올려주세요.';
+      el.list.appendChild(d);
+      return;
+    }
+
+    songs.forEach(function (song) {
+      const chords = [];
+      (song.notes || []).forEach(function (n) { if (chords.indexOf(n.chord) < 0) chords.push(n.chord); });
+
+      const card = document.createElement('div');
+      card.className = 'song-card';
+
+      const main = document.createElement('div');
+      main.className = 'sc-main';
+      main.innerHTML = '<h3>' + escapeHtml(song.title) + '</h3>' +
+        '<div class="sc-meta">' +
+        '<span>코드 ' + (song.notes || []).length + '개</span>' +
+        '<span>' + fmtDur(song.duration || 0) + '</span>' +
+        '<span>BPM ' + (song.bpm || '-') + '</span>' +
+        (song.audio ? '' : '<span class="warn">mp3 없음</span>') +
+        '</div>';
+      const chipRow = document.createElement('div');
+      chipRow.className = 'sc-chords';
+      chords.slice(0, 8).forEach(function (c) {
+        const s = document.createElement('span');
+        s.className = 'chip';
+        s.textContent = c;
+        s.style.background = GChords.colorOf(c).dark;
+        chipRow.appendChild(s);
+      });
+      main.appendChild(chipRow);
+
+      const btns = document.createElement('div');
+      btns.className = 'sc-btns';
+      btns.appendChild(mkBtn('▶ 연주', 'btn btn-primary', function () { startPlay(song); }));
+      if (rw) {
+        btns.appendChild(mkBtn('채보 수정', 'btn btn-secondary', function () { openEditor(song); }));
+        btns.appendChild(mkBtn('삭제', 'btn btn-back btn-sm2', function () {
+          if (!confirm('"' + song.title + '"을 폴더에서 삭제할까요?')) return;
+          GStore.deleteSong(song.id).then(function () {
+            if (loadedAudioId === song.id) loadedAudioId = null;
+            renderList();
+            toast('삭제했어요.');
+          }).catch(function (e) { toast('삭제하지 못했어요: ' + e.message); });
+        }));
+      }
+
+      card.appendChild(main);
+      card.appendChild(btns);
+      el.list.appendChild(card);
+    });
+  }
+
+  function mkBtn(label, cls, fn) {
+    const b = document.createElement('button');
+    b.className = cls;
+    b.textContent = label;
+    b.addEventListener('click', fn);
+    return b;
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function fmtDur(sec) {
+    const m = Math.floor(sec / 60);
+    const s = Math.round(sec - m * 60);
+    return m + ':' + (s < 10 ? '0' : '') + s;
+  }
+
+  /* ---------- audio ---------- */
+  function ensureAudio(song) {
+    if (loadedAudioId === song.id && GAudio.hasAudio()) return Promise.resolve();
+    const url = GStore.audioUrl(song);
+    if (!url) return Promise.reject(new Error('no-audio'));
+    return fetch(url, { cache: 'no-store' })
+      .then(function (r) {
+        if (!r.ok) throw new Error('http-' + r.status);
+        return r.blob();
+      })
+      .then(function (blob) { return GAudio.load(blob); })
+      .then(function () { loadedAudioId = song.id; });
+  }
+
+  /* Pick an mp3: song=null creates a new one. */
+  function pickAudioFor(song, after) {
+    if (!GStore.canWrite()) {
+      toast('이 기기에서는 곡을 추가할 수 없어요. 맥에서 추가해 주세요.');
+      return;
+    }
+    audioPick = { song: song, after: after };
+    el.fileAudio.value = '';
+    el.fileAudio.click();
+  }
+
+  function onAudioChosen(e) {
+    const file = e.target.files && e.target.files[0];
+    if (!file || !audioPick) return;
+    const ctx = audioPick;
+    audioPick = null;
+    toast('불러오는 중…');
+
+    let song = ctx.song;
+    const isNew = !song;
+    if (isNew) {
+      song = {
+        id: GStore.newId(),
+        title: file.name.replace(/\.[^.]+$/, ''),
+        bpm: 90, offset: 0, beatsPerBar: 4, snap: '1', notes: [],
+      };
+    }
+
+    GAudio.resume()
+      .then(function () { return GAudio.load(file); })
+      .then(function () {
+        song.duration = GAudio.duration();
+        loadedAudioId = song.id;
+        toast('폴더에 저장 중…');
+        return GStore.uploadAudio(song.id, file);
+      })
+      .then(function (res) {
+        song.audio = res.audio;
+        return GStore.saveSong(song);
+      })
+      .then(function (saved) {
+        toast('songs 폴더에 저장했어요.');
+        if (ctx.after) ctx.after(saved);
+        else openEditor(saved, true);
+      })
+      .catch(function (err) {
+        toast('저장하지 못했어요: ' + (err && err.message ? err.message : 'error'));
+      });
+  }
+
+  /* ---------- editor / play ---------- */
+  function saveSongFromEditor(song) {
+    return GStore.saveSong(song)
+      .then(function () { toast('songs 폴더에 저장했어요.'); })
+      .catch(function (e) { toast('저장하지 못했어요: ' + e.message); throw e; });
+  }
+
+  function openEditor(song, audioReady) {
+    const go = function () {
+      show('editor');
+      GEditor.open(song);
+    };
+    if (audioReady && loadedAudioId === song.id) { go(); return; }
+    ensureAudio(song).then(go).catch(function () {
+      toast('mp3를 찾을 수 없어요. "mp3 교체"로 다시 넣어주세요.');
+      go();
+    });
+  }
+
+  function startPlay(song) {
+    if (!(song.notes || []).length) {
+      toast('먼저 채보에서 코드를 찍어주세요.');
+      if (GStore.canWrite()) openEditor(song);
+      return;
+    }
+    lastPlayed = song;
+    GAudio.resume();          // must happen inside the tap for iOS
+    toast('곡을 준비하고 있어요…');
+    ensureAudio(song)
+      .then(function () {
+        el.toast.classList.remove('show');
+        show('play');
+        requestAnimationFrame(function () { GPlay.start(song); });
+      })
+      .catch(function (err) {
+        toast('mp3를 불러오지 못했어요 (' + (err && err.message ? err.message : 'error') + ')');
+      });
+  }
+
+  /* ---------- chart import ---------- */
+  function onChartChosen(e) {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    e.target.value = '';
+    const reader = new FileReader();
+    reader.onload = function () {
+      let data;
+      try {
+        data = JSON.parse(reader.result);
+      } catch (err) {
+        toast('JSON을 읽을 수 없어요.');
+        return;
+      }
+      if (!data || !Array.isArray(data.notes)) { toast('채보 파일 형식이 아니에요.'); return; }
+      const song = {
+        id: GStore.newId(),
+        title: data.title || file.name.replace(/\.[^.]+$/, ''),
+        bpm: data.bpm || 90,
+        offset: data.offset || 0,
+        beatsPerBar: data.beatsPerBar || 4,
+        snap: '1',
+        duration: data.duration || 0,
+        notes: data.notes.filter(function (n) { return n && typeof n.t === 'number' && n.chord; })
+          .map(function (n) { return { t: n.t, chord: n.chord }; }),
+      };
+      GStore.saveSong(song).then(function (saved) {
+        renderList();
+        toast('채보를 가져왔어요. 이제 mp3를 골라주세요.');
+        pickAudioFor(saved, function (s2) { openEditor(s2, true); });
+      }).catch(function (err) { toast('저장하지 못했어요: ' + err.message); });
+    };
+    reader.readAsText(file);
+  }
+
+  /* ---------- result ---------- */
+  function showResult(res, song) {
+    lastPlayed = song;
+    const acc = res.total ? (res.good + res.soso * 0.5) / res.total : 0;
+    const pct = Math.round(acc * 100);
+    const stars = pct >= 95 ? 3 : pct >= 80 ? 2 : pct >= 60 ? 1 : 0;
+
+    $('resStars').textContent = '★★★☆☆☆'.slice(3 - stars, 6 - stars);
+    $('resTitle').textContent = (song.title || '연주') + ' 끝!';
+    $('resScore').textContent = res.score.toLocaleString();
+    $('resGood').textContent = res.good;
+    $('resSoso').textContent = res.soso;
+    $('resMiss').textContent = res.miss;
+    $('resCombo').textContent = res.maxCombo;
+    $('resAcc').textContent = pct + '%';
+    $('resComment').textContent =
+      stars === 3 ? '완벽해요! 코드 바꾸기가 아주 정확해요 👏' :
+      stars === 2 ? '좋아요! 조금만 더 다듬으면 완벽해요.' :
+      stars === 1 ? '잘했어요. 느린 속도로 한 번 더 해볼까요?' :
+      '천천히 연습해봐요. 속도를 0.75배로 낮춰보세요.';
+    show('result');
+  }
+
+  /* ---------- settings ---------- */
+  function wireSettings() {
+    const s = GStore.getSettings();
+    [['setScroll', 'scrollSec', 'setScrollVal'],
+     ['setEarly', 'earlyWindow', 'setEarlyVal'],
+     ['setLate', 'lateWindow', 'setLateVal']].forEach(function (m) {
+      const input = $(m[0]);
+      input.value = s[m[1]];
+      $(m[2]).textContent = Number(s[m[1]]).toFixed(2);
+      input.addEventListener('input', function () {
+        const cur = GStore.getSettings();
+        cur[m[1]] = parseFloat(input.value);
+        GStore.saveSettings(cur);
+        $(m[2]).textContent = Number(input.value).toFixed(2);
+      });
+    });
+
+    [['setAutoMiss', 'autoMiss'], ['setDiagram', 'showDiagram']].forEach(function (m) {
+      const box = $(m[0]);
+      box.checked = !!s[m[1]];
+      box.addEventListener('change', function () {
+        const cur = GStore.getSettings();
+        cur[m[1]] = box.checked;
+        GStore.saveSettings(cur);
+      });
+    });
+
+    const countIn = $('setCountIn');
+    countIn.value = s.countInBeats;
+    countIn.addEventListener('change', function () {
+      const cur = GStore.getSettings();
+      cur.countInBeats = Math.max(0, Math.min(8, parseInt(countIn.value, 10) || 0));
+      countIn.value = cur.countInBeats;
+      GStore.saveSettings(cur);
+    });
+
+    $('setClose').addEventListener('click', function () { el.settingsOverlay.classList.remove('show'); });
+    $('setReset').addEventListener('click', function () {
+      GStore.saveSettings(JSON.parse(JSON.stringify(GStore.defaultSettings)));
+      el.settingsOverlay.classList.remove('show');
+      settingsValues();
+      toast('기본값으로 되돌렸어요.');
+    });
+  }
+
+  function settingsValues() {
+    const s = GStore.getSettings();
+    $('setScroll').value = s.scrollSec;
+    $('setScrollVal').textContent = Number(s.scrollSec).toFixed(2);
+    $('setEarly').value = s.earlyWindow;
+    $('setEarlyVal').textContent = Number(s.earlyWindow).toFixed(2);
+    $('setLate').value = s.lateWindow;
+    $('setLateVal').textContent = Number(s.lateWindow).toFixed(2);
+    $('setAutoMiss').checked = !!s.autoMiss;
+    $('setDiagram').checked = !!s.showDiagram;
+    $('setCountIn').value = s.countInBeats;
+  }
+
+  function openSettings() {
+    settingsValues();
+    el.settingsOverlay.classList.add('show');
+  }
+
+  global.GMain = { toast: toast, renderList: renderList };
+})(window);

@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="기타 코드 리듬" />
+  <meta name="theme-color" content="#121a2e" />
+  <title>기타 코드 리듬 — 수업용</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css?v=2" />
+  <script src="js/access-config.js?v=2"></script>
+  <script>
+    /* 잠금이 필요한 주소면 화면을 먼저 가려 깜빡임을 막습니다 */
+    (function () {
+      var h = location.hostname, cfg = window.GCHORD_GATE || {};
+      var local = location.protocol === 'file:' || h === 'localhost' || h === '127.0.0.1' ||
+        h === '[::1]' || /\.local$/i.test(h) || /^10\./.test(h) || /^192\.168\./.test(h) ||
+        /^172\.(1[6-9]|2\d|3[01])\./.test(h);
+      try {
+        if (!local && localStorage.getItem(cfg.storageKey || 'gchord-auth') !== '1') {
+          document.documentElement.className += ' gate-on';
+        }
+      } catch (e) { /* ignore */ }
+    })();
+  </script>
+</head>
+<body>
+
+<!-- ===== 접속 코드 ===== -->
+<div class="gate" id="accessGate" hidden>
+  <div class="gate-card">
+    <div class="gate-logo">🎸</div>
+    <h1>기타 코드 리듬</h1>
+    <p>선생님께 받은 접속 코드를 입력하세요.</p>
+    <input id="gateInput" type="password" inputmode="text" autocomplete="off"
+           autocapitalize="off" spellcheck="false" placeholder="접속 코드" />
+    <div class="gate-error hidden" id="gateError">코드가 맞지 않아요.</div>
+    <button class="btn btn-primary btn-lg" id="gateSubmit">들어가기</button>
+  </div>
+</div>
+
+<!-- ===== 홈 ===== -->
+<section id="screen-home" class="screen active">
+  <header class="home-head">
+    <h1>🎸 기타 코드 리듬</h1>
+    <p>노래에 맞춰 내려오는 코드를 연주하고, 선생님이 바로 판정해요.</p>
+  </header>
+
+  <div class="home-actions">
+    <button class="btn btn-primary btn-lg" id="btnAddSong">＋ 새 곡 추가 (mp3)</button>
+    <button class="btn" id="btnImportChart">채보 가져오기</button>
+    <button class="btn" id="btnSettings">⚙ 설정</button>
+    <button class="btn hidden" id="btnOffline">⬇ 오프라인 저장</button>
+  </div>
+  <div class="offline-state hidden" id="offlineState"></div>
+
+  <div class="mode-note hidden" id="modeNote">
+    📱 <b>읽기 전용</b> — 이 기기에서는 연주만 할 수 있어요. 곡 추가·채보는 맥에서 하세요.
+  </div>
+
+  <div class="song-list" id="songList"></div>
+
+  <p class="home-foot">
+    판정 키 — <b class="k-good">X</b> 성공 · <b class="k-soso">Z</b> 살짝 · <b class="k-miss">C</b> 실패 ·
+    <b>Space</b> 일시정지
+  </p>
+
+  <input type="file" id="fileAudio" accept="audio/*" hidden />
+  <input type="file" id="fileChart" accept=".json,application/json" hidden />
+</section>
+
+<!-- ===== 채보 에디터 ===== -->
+<section id="screen-editor" class="screen">
+  <div class="ed-top">
+    <button class="btn btn-back btn-sm2" id="edBack">← 목록</button>
+    <input class="ed-title" id="edTitle" placeholder="곡 제목" />
+    <span class="ed-file" id="edFile" title="songs 폴더의 음원 파일"></span>
+    <span class="spacer"></span>
+    <button class="btn btn-sm2" id="edReplaceAudio">mp3 교체</button>
+    <button class="btn btn-sm2" id="edExport">내보내기</button>
+    <button class="btn btn-secondary btn-sm2" id="edPlaytest">▶ 연주 테스트</button>
+    <button class="btn btn-primary btn-sm2" id="edSave">저장</button>
+  </div>
+
+  <div class="ed-transport">
+    <button class="btn btn-lg2" id="edPlayPause">▶</button>
+    <button class="btn btn-sm2" id="edStop">■</button>
+    <span class="ed-time" id="edTime">0:00.00 / 0:00</span>
+
+    <label class="ed-field">BPM
+      <input type="number" id="edBpm" min="30" max="300" step="0.1" value="90" />
+    </label>
+    <button class="btn btn-sm2" id="edTap">탭 템포</button>
+    <label class="ed-field">첫박(초)
+      <input type="number" id="edOffset" min="0" step="0.01" value="0" />
+    </label>
+    <button class="btn btn-sm2" id="edSetOffset">지금을 첫박으로</button>
+    <label class="ed-field">박자
+      <select id="edBeats">
+        <option value="4">4/4</option>
+        <option value="3">3/4</option>
+        <option value="2">2/4</option>
+        <option value="6">6/8</option>
+      </select>
+    </label>
+    <label class="ed-field">스냅
+      <select id="edSnap">
+        <option value="bar">1마디</option>
+        <option value="half">반마디</option>
+        <option value="1" selected>1박</option>
+        <option value="0.5">1/2박</option>
+        <option value="0">없음</option>
+      </select>
+    </label>
+    <label class="ed-check"><input type="checkbox" id="edMetro" /> 메트로놈</label>
+    <label class="ed-field">속도
+      <select id="edRate">
+        <option value="0.6">0.6x</option>
+        <option value="0.75">0.75x</option>
+        <option value="0.9">0.9x</option>
+        <option value="1" selected>1.0x</option>
+      </select>
+    </label>
+    <label class="ed-field">확대
+      <input type="range" id="edZoom" min="30" max="400" step="10" value="110" />
+    </label>
+  </div>
+
+  <div class="ed-timeline" id="edTimeline">
+    <div class="ed-canvas-wrap" id="edCanvasWrap">
+      <canvas id="edCanvas" class="ed-canvas"></canvas>
+    </div>
+  </div>
+
+  <div class="ed-palette-wrap">
+    <div class="ed-palette" id="edPalette"></div>
+    <div class="ed-brush">
+      <div class="ed-brush-label">선택한 코드</div>
+      <div class="ed-brush-chord" id="edBrush"></div>
+      <button class="btn btn-primary" id="edPlace">여기에 찍기 (Enter)</button>
+    </div>
+  </div>
+
+  <p class="ed-hint">
+    코드를 고른 뒤 <b>타임라인을 클릭</b>하면 그 위치에 놓입니다. 재생 중 <b>Enter</b> 또는 코드 버튼을 누르면 현재 지점에 바로 찍혀요.
+    노트를 <b>클릭</b>해 선택 → <b>Delete</b> 삭제, <b>드래그</b>로 이동. <b>Space</b> 재생/정지.
+  </p>
+
+  <div class="ed-notes" id="edNotes"></div>
+</section>
+
+<!-- ===== 연주 ===== -->
+<section id="screen-play" class="screen">
+  <div class="play-top">
+    <button class="btn btn-back btn-sm2" id="playExit">← 나가기</button>
+    <div class="play-song" id="playSong"></div>
+    <div class="play-stats">
+      <div class="stat"><span>점수</span><b id="statScore">0</b></div>
+      <div class="stat"><span>콤보</span><b id="statCombo">0</b></div>
+      <div class="stat"><span>정확도</span><b id="statAcc">100%</b></div>
+    </div>
+  </div>
+  <div class="play-progress"><div class="play-progress-fill" id="playProgress"></div></div>
+
+  <div class="play-body">
+    <div class="lane-field" id="laneField">
+      <div class="lane-cols" id="laneCols"></div>
+      <div class="notes-layer" id="notesLayer"></div>
+      <div class="judge-line"><span class="judge-line-label">여기서 연주!</span></div>
+      <div class="lane-feet" id="laneFeet"></div>
+      <div class="judge-popup" id="judgePopup"></div>
+      <div class="combo-float" id="comboFloat"></div>
+    </div>
+
+    <aside class="play-side">
+      <div class="side-box now">
+        <div class="side-label">지금 코드</div>
+        <div class="side-chord" id="nowChord"><span class="side-empty">—</span></div>
+      </div>
+      <div class="side-box next">
+        <div class="side-label">다음 코드</div>
+        <div class="side-chord small" id="nextChord"><span class="side-empty">—</span></div>
+      </div>
+      <div class="tally" id="tally">
+        <span class="t-good">성공 <b>0</b></span>
+        <span class="t-soso">살짝 <b>0</b></span>
+        <span class="t-miss">실패 <b>0</b></span>
+      </div>
+    </aside>
+  </div>
+
+  <div class="judge-bar">
+    <button class="jbtn jbtn-soso" data-judge="soso"><b>살짝</b><span>Z</span></button>
+    <button class="jbtn jbtn-good" data-judge="good"><b>성공</b><span>X</span></button>
+    <button class="jbtn jbtn-miss" data-judge="miss"><b>실패</b><span>C</span></button>
+    <button class="jbtn jbtn-pause" id="playPause"><b>일시정지</b><span>Space</span></button>
+  </div>
+
+  <div class="overlay" id="countOverlay"><div class="count-num" id="countNum">3</div></div>
+
+  <div class="overlay" id="pauseOverlay">
+    <div class="panel">
+      <h2>일시정지</h2>
+      <div class="panel-row">
+        <button class="btn btn-primary btn-lg" id="btnResume">계속하기</button>
+        <button class="btn btn-secondary" id="btnRestart">처음부터</button>
+        <button class="btn btn-back" id="btnQuit">그만하기</button>
+      </div>
+      <div class="panel-row small">
+        <label class="ed-field">속도
+          <select id="playRate">
+            <option value="0.6">0.6x</option>
+            <option value="0.75">0.75x</option>
+            <option value="0.9">0.9x</option>
+            <option value="1" selected>1.0x</option>
+          </select>
+        </label>
+        <label class="ed-field">낙하 속도
+          <input type="range" id="playScroll" min="1.2" max="5" step="0.2" />
+        </label>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 결과 ===== -->
+<section id="screen-result" class="screen">
+  <div class="result-card">
+    <div class="result-stars" id="resStars">★★★</div>
+    <h2 id="resTitle">연주 끝!</h2>
+    <div class="result-score" id="resScore">0</div>
+    <div class="result-grid">
+      <div class="rg good"><span>성공</span><b id="resGood">0</b></div>
+      <div class="rg soso"><span>살짝</span><b id="resSoso">0</b></div>
+      <div class="rg miss"><span>실패</span><b id="resMiss">0</b></div>
+      <div class="rg"><span>최대 콤보</span><b id="resCombo">0</b></div>
+      <div class="rg"><span>정확도</span><b id="resAcc">0%</b></div>
+    </div>
+    <div class="result-comment" id="resComment"></div>
+    <div class="panel-row">
+      <button class="btn btn-primary btn-lg" id="resAgain">다시 연주</button>
+      <button class="btn btn-back" id="resHome">목록으로</button>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 설정 ===== -->
+<div class="overlay" id="settingsOverlay">
+  <div class="panel wide">
+    <h2>⚙ 설정</h2>
+    <div class="set-row">
+      <label>낙하 속도 <small>코드가 위에서 판정선까지 내려오는 시간</small></label>
+      <div><input type="range" id="setScroll" min="1.2" max="5" step="0.2" /> <span id="setScrollVal"></span>초</div>
+    </div>
+    <div class="set-row">
+      <label>판정 가능 구간 (이르게) <small>박자 전에 미리 판정할 수 있는 시간</small></label>
+      <div><input type="range" id="setEarly" min="0.2" max="1.2" step="0.05" /> <span id="setEarlyVal"></span>초</div>
+    </div>
+    <div class="set-row">
+      <label>판정 가능 구간 (늦게) <small>박자가 지난 뒤 봐주는 시간</small></label>
+      <div><input type="range" id="setLate" min="0.15" max="1.2" step="0.05" /> <span id="setLateVal"></span>초</div>
+    </div>
+    <div class="set-row">
+      <label>자동 실패 <small>판정을 누르지 않고 지나가면 실패로 처리</small></label>
+      <div><label class="ed-check"><input type="checkbox" id="setAutoMiss" /> 사용</label></div>
+    </div>
+    <div class="set-row">
+      <label>운지 그림 표시 <small>레인 아래와 옆 패널에 코드 운지를 보여줘요</small></label>
+      <div><label class="ed-check"><input type="checkbox" id="setDiagram" /> 사용</label></div>
+    </div>
+    <div class="set-row">
+      <label>시작 카운트 <small>연주 시작 전 딱딱딱</small></label>
+      <div><input type="number" id="setCountIn" min="0" max="8" step="1" /> 박</div>
+    </div>
+    <div class="panel-row">
+      <button class="btn btn-primary btn-lg" id="setClose">닫기</button>
+      <button class="btn btn-back" id="setReset">기본값으로</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- 파일을 고친 뒤 아이패드에 반영이 안 되면 아래 v= 숫자를 올리세요 -->
+<script src="js/gate.js?v=2"></script>
+<script src="js/chords.js?v=2"></script>
+<script src="js/storage.js?v=2"></script>
+<script src="js/audio.js?v=2"></script>
+<script src="js/editor.js?v=2"></script>
+<script src="js/play.js?v=2"></script>
+<script src="js/main.js?v=2"></script>
+</body>
+</html>

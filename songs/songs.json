@@ -1,0 +1,50 @@
+{
+  "format": "gchord-songs-v1",
+  "songs": [
+    {
+      "id": "smvhnbin4ia3g",
+      "title": "연습용 데모 (C-G-Am-F)",
+      "audio": "smvhnbin4ia3g.m4a",
+      "bpm": 90,
+      "offset": 0,
+      "beatsPerBar": 4,
+      "snap": "1",
+      "duration": 21.333333333333332,
+      "updatedAt": 1792558970977,
+      "notes": [
+        {
+          "t": 0,
+          "chord": "C"
+        },
+        {
+          "t": 2.6666666666666665,
+          "chord": "G"
+        },
+        {
+          "t": 5.333333333333333,
+          "chord": "Am"
+        },
+        {
+          "t": 8,
+          "chord": "F"
+        },
+        {
+          "t": 10.666666666666666,
+          "chord": "C"
+        },
+        {
+          "t": 13.333333333333332,
+          "chord": "G"
+        },
+        {
+          "t": 16,
+          "chord": "Am"
+        },
+        {
+          "t": 18.666666666666664,
+          "chord": "F"
+        }
+      ]
+    }
+  ]
+}
