@@ -149,7 +149,10 @@
     measure();
 
     const spb = 60 / (song.bpm || 90);
-    const beats = Math.max(0, parseInt(settings.countInBeats, 10) || 0);
+    /* 설정값은 4/4 기준 — 3박자 곡은 한 마디(3박)로 세어야 합니다 */
+    const bpbNow = song.beatsPerBar || 4;
+    const setBeats = Math.max(0, parseInt(settings.countInBeats, 10) || 0);
+    const beats = setBeats ? Math.max(1, Math.round(setBeats / 4)) * bpbNow : 0;
     leadSec = Math.max(settings.scrollSec, beats * spb) + 0.3;
     pendingTicks = [];
     for (let k = beats; k >= 1; k--) pendingTicks.push({ t: -k * spb, n: k });

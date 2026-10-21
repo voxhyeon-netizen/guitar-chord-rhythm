@@ -39,10 +39,13 @@
     const pat = pattern(patId, bpb);
     const slots = pat.length;
     const out = [];
-    let k = Math.ceil((t0 - offset) / eighth - 1e-6);
+    /* 채보 시각이 격자보다 몇 밀리초 어긋나 있어도 마디 첫 칸을 놓치지 않게
+       (아주 조금 앞선 격자 칸까지 이 코드의 것으로 봅니다) */
+    let k = Math.ceil((t0 - offset) / eighth - 0.25);
     for (let guard = 0; guard < 400; guard++) {
       const t = offset + k * eighth;
-      if (t >= t1 - 1e-6) break;
+      /* 끝 경계는 다음 코드의 몫이라 살짝 앞에서 끊습니다 (화살표 중복 방지) */
+      if (t >= t1 - eighth * 0.25) break;
       const ch = pat[((k % slots) + slots) % slots];
       if (ch === 'D' || ch === 'U') out.push({ t: t, dir: ch });
       k++;
