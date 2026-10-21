@@ -46,6 +46,9 @@
       snapSound: $('edSnapSound'),
       beats: $('edBeats'),
       snap: $('edSnap'),
+      strum: $('edStrum'),
+      strumHere: $('edStrumHere'),
+      strumNote: $('edStrumNote'),
       metro: $('edMetro'),
       rate: $('edRate'),
       zoom: $('edZoom'),
@@ -59,6 +62,31 @@
     };
 
     buildPalette();
+    buildStrumList();
+
+    el.strum.addEventListener('change', function () {
+      song.strum = el.strum.value;          // 곡 전체 기본 주법
+      dirty = true;
+      renderNoteList();
+      toast('곡 기본 주법: ' + GStrum.name(song.strum));
+    });
+    el.strumHere.addEventListener('click', function () {
+      const t = snapTime(GAudio.now());
+      song.strumChanges = (song.strumChanges || []).filter(function (c) { return Math.abs(c.t - t) > 0.02; });
+      song.strumChanges.push({ t: t, strum: el.strum.value });
+      song.strumChanges.sort(function (a, b) { return a.t - b.t; });
+      dirty = true;
+      renderNoteList();
+      toast(fmt(t) + ' 부터 ' + GStrum.name(el.strum.value));
+    });
+    el.strumNote.addEventListener('click', function () {
+      const n = song.notes[selected];
+      if (!n) { toast('먼저 코드를 선택해 주세요.'); return; }
+      n.strum = el.strum.value;
+      dirty = true;
+      renderNoteList();
+      toast(n.chord + ' 코드만 ' + GStrum.name(n.strum));
+    });
 
     el.back.addEventListener('click', function () {
       if (dirty && !confirm('저장하지 않은 변경이 있어요. 목록으로 나갈까요?')) return;
@@ -157,6 +185,26 @@
     document.addEventListener('keydown', onKey);
   }
 
+  function buildStrumList() {
+    el.strum.innerHTML = '';
+    GStrum.PRESETS.forEach(function (p) {
+      const o = document.createElement('option');
+      o.value = p.id;
+      o.textContent = p.name + '  ' + p.pat.replace(/D/g, '↓').replace(/U/g, '↑').replace(/-/g, '·');
+      el.strum.appendChild(o);
+    });
+  }
+
+  /* 이 코드를 '얼마 동안' 치는지 — 다음 코드까지 (최대 4마디) */
+  function noteSpanSec(i) {
+    const n = song.notes[i];
+    if (!n) return secPerBeat();
+    const next = song.notes[i + 1];
+    const barLen = secPerBeat() * (song.beatsPerBar || 4);
+    const d = next ? next.t - n.t : barLen;
+    return Math.max(secPerBeat() * 0.5, Math.min(d, barLen * 4));
+  }
+
   function clampNum(v, lo, hi, dflt) {
     if (!isFinite(v)) return dflt;
     return Math.max(lo, Math.min(hi, v));
@@ -183,6 +231,9 @@
     el.offset.value = Number(song.offset).toFixed(2);
     el.beats.value = String(song.beatsPerBar);
     el.snap.value = song.snap;
+    if (!song.strum) song.strum = '4';
+    if (!song.strumChanges) song.strumChanges = [];
+    el.strum.value = song.strum;
     el.metro.checked = false;
     el.tap.textContent = '탭 템포 (T)';
     taps = [];
@@ -409,10 +460,10 @@
     const y = e.clientY - r.top;
     if (y < NOTE_TOP - 4) return -1;
     const t = (e.clientX - r.left + el.timeline.scrollLeft) / pxPerSec;
-    const w = noteWidthPx() / pxPerSec;
     for (let i = song.notes.length - 1; i >= 0; i--) {
       const n = song.notes[i];
-      if (t >= n.t && t <= n.t + w) return i;
+      const head = Math.min(noteSpanSec(i), 44 / pxPerSec);
+      if (t >= n.t && t <= n.t + head) return i;
     }
     return -1;
   }
@@ -790,17 +841,34 @@
     if (hoverT != null && !dragging) {
       const gx = hoverT * pxPerSec - scroll;
       ctx.globalAlpha = 0.35;
-      drawNoteBox(ctx, gx, brush, false);
+      drawNoteBox(ctx, gx, brush, false, noteWidthPx(), null, 0);
       ctx.globalAlpha = 1;
     }
 
     /* notes */
-    const nw = noteWidthPx();
     for (let i = 0; i < song.notes.length; i++) {
       const n = song.notes[i];
-      if (n.t > t1 + 1 || n.t * pxPerSec + nw < scroll - 1) continue;
-      drawNoteBox(ctx, n.t * pxPerSec - scroll, n.chord, i === selected);
+      const span = noteSpanSec(i);
+      const wpx = Math.max(26, span * pxPerSec);
+      if (n.t > t1 + 1 || n.t * pxPerSec + wpx < scroll - 1) continue;
+      drawNoteBox(ctx, n.t * pxPerSec - scroll, n.chord, i === selected, wpx,
+        global.GStrum ? GStrum.forNote(song, n) : null, n.t, span, !!n.strum);
     }
+
+    /* 주법이 바뀌는 지점 */
+    (song.strumChanges || []).forEach(function (c) {
+      if (c.t < t0 - 1 || c.t > t1 + 1) return;
+      const x = c.t * pxPerSec - scroll;
+      ctx.strokeStyle = '#ffd97a';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x, RULER_TOP);
+      ctx.lineTo(x, NOTE_TOP + NOTE_H);
+      ctx.stroke();
+      ctx.fillStyle = '#ffd97a';
+      ctx.font = '800 10px Nunito, sans-serif';
+      ctx.fillText('▶ ' + GStrum.name(c.strum), x + 4, RULER_TOP + 12);
+    });
 
     /* playhead */
     const px = GAudio.now() * pxPerSec - scroll;
@@ -819,20 +887,49 @@
     ctx.fill();
   }
 
-  function drawNoteBox(ctx, x, chord, isSel) {
-    const w = noteWidthPx();
+  function drawNoteBox(ctx, x, chord, isSel, wpx, patId, noteT, span, ownPattern) {
+    const w = wpx || noteWidthPx();
     const col = GChords.colorOf(chord);
+
+    /* 치는 구간 전체 */
     roundRect(ctx, x, NOTE_TOP + 4, w, NOTE_H - 10, 9);
     ctx.fillStyle = col.main;
+    ctx.globalAlpha = 0.35;
     ctx.fill();
+    ctx.globalAlpha = 1;
     ctx.strokeStyle = isSel ? '#fff' : col.dark;
     ctx.lineWidth = isSel ? 3 : 2;
     ctx.stroke();
+
+    /* 머리 — 코드 이름 */
+    const head = Math.min(w, 44);
+    roundRect(ctx, x, NOTE_TOP + 4, head, NOTE_H - 10, 9);
+    ctx.fillStyle = col.main;
+    ctx.fill();
     ctx.fillStyle = '#10203a';
-    ctx.font = '900 16px Nunito, sans-serif';
+    ctx.font = '900 15px Nunito, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(chord, x + w / 2, NOTE_TOP + NOTE_H / 2 + 4, w - 6);
+    ctx.fillText(chord, x + head / 2, NOTE_TOP + NOTE_H / 2 + 4, head - 4);
     ctx.textAlign = 'left';
+
+    /* 치는 순간 화살표 */
+    if (patId && global.GStrum && span) {
+      const marks = GStrum.times(song, patId, noteT, noteT + span);
+      ctx.font = '900 13px Nunito, sans-serif';
+      ctx.textAlign = 'center';
+      for (let i = 0; i < marks.length; i++) {
+        const mx = x + (marks[i].t - noteT) * pxPerSec;
+        if (mx < x + head - 2) continue;
+        ctx.fillStyle = marks[i].dir === 'U' ? '#9fd3ff' : '#ffffff';
+        ctx.fillText(GStrum.arrow(marks[i].dir), mx, NOTE_TOP + NOTE_H - 12);
+      }
+      ctx.textAlign = 'left';
+      if (ownPattern) {
+        ctx.fillStyle = '#ffd97a';
+        ctx.font = '800 9px Nunito, sans-serif';
+        ctx.fillText('개별', x + 2, NOTE_TOP + 14);
+      }
+    }
   }
 
   function roundRect(ctx, x, y, w, h, r) {

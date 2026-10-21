@@ -117,6 +117,12 @@
       snap: s.snap || '1',
       duration: s.duration || 0,
       updatedAt: s.updatedAt || 0,
+      strum: s.strum || '4',
+      strumChanges: Array.isArray(s.strumChanges)
+        ? s.strumChanges.filter(function (c) { return c && typeof c.t === 'number' && c.strum; })
+            .map(function (c) { return { t: c.t, strum: c.strum }; })
+            .sort(function (a, b) { return a.t - b.t; })
+        : [],
       notes: Array.isArray(s.notes) ? s.notes.slice() : [],
     };
   }

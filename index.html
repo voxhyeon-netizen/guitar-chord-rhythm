@@ -11,8 +11,8 @@
   <title>기타 코드 리듬 — 수업용</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=13" />
-  <script src="js/access-config.js?v=13"></script>
+  <link rel="stylesheet" href="css/style.css?v=14" />
+  <script src="js/access-config.js?v=14"></script>
   <script>
     /* 잠금이 필요한 주소면 화면을 먼저 가려 깜빡임을 막습니다 */
     (function () {
@@ -118,6 +118,11 @@
         <option value="6">6/8</option>
       </select>
     </label>
+    <label class="ed-field">주법
+      <select id="edStrum"></select>
+    </label>
+    <button class="btn btn-sm2" id="edStrumHere" title="재생선 위치부터 이 주법으로 바꿉니다">여기부터</button>
+    <button class="btn btn-sm2" id="edStrumNote" title="선택한 코드 하나만 이 주법으로">이 코드만</button>
     <label class="ed-field">스냅
       <select id="edSnap">
         <option value="bar">1마디</option>
@@ -333,12 +338,13 @@
 <div class="toast" id="toast"></div>
 
 <!-- 파일을 고친 뒤 아이패드에 반영이 안 되면 아래 v= 숫자를 올리세요 -->
-<script src="js/gate.js?v=13"></script>
-<script src="js/chords.js?v=13"></script>
-<script src="js/storage.js?v=13"></script>
-<script src="js/audio.js?v=13"></script>
-<script src="js/editor.js?v=13"></script>
-<script src="js/play.js?v=13"></script>
-<script src="js/main.js?v=13"></script>
+<script src="js/gate.js?v=14"></script>
+<script src="js/chords.js?v=14"></script>
+<script src="js/strum.js?v=14"></script>
+<script src="js/storage.js?v=14"></script>
+<script src="js/audio.js?v=14"></script>
+<script src="js/editor.js?v=14"></script>
+<script src="js/play.js?v=14"></script>
+<script src="js/main.js?v=14"></script>
 </body>
 </html>

@@ -16,6 +16,7 @@
   let rafId = 0;
   let judgeY = 0;
   let footH = 0;
+  let headH = NOTE_H;      // 막대 머리 높이 — 화면 크기에 맞춰 정해집니다
   let stats = null;
   let lastTarget = null;
   let lastToggleMs = 0;
@@ -113,6 +114,16 @@
         };
       });
 
+    /* 각 코드가 '얼마 동안 치는지'와 '어떤 주법인지' */
+    const spbNow = 60 / (song.bpm || 90);
+    const barLen = spbNow * (song.beatsPerBar || 4);
+    notes.forEach(function (n, i) {
+      const next = notes[i + 1];
+      let d = next ? next.t - n.t : barLen;
+      n.dur = Math.max(spbNow * 0.5, Math.min(d, barLen * 4));
+      n.pat = global.GStrum ? GStrum.forNote(song, n) : null;
+    });
+
     stats = { good: 0, soso: 0, miss: 0, skip: 0, score: 0, combo: 0, maxCombo: 0 };
     lastTarget = null;
     el.songName.textContent = song.title || '';
@@ -193,6 +204,7 @@
 
   function measure() {
     const h = el.field.clientHeight;
+    headH = Math.max(56, Math.min(110, Math.round(h * 0.105)));
     if (!h || !el.field.clientWidth) {         // 화면이 아직 잡히지 않음 — 곧 다시 잽니다
       setTimeout(function () { if (active) measure(); }, 60);
     }
@@ -242,8 +254,6 @@
     }
 
     const laneW = el.field.clientWidth / Math.max(1, lanes.length);
-    const startY = -NOTE_H;
-    const endY = judgeY - NOTE_H / 2;   // the note sits centred on the line on the beat
     const scrollSec = settings.scrollSec;
 
     for (let i = 0; i < notes.length; i++) {
@@ -257,10 +267,12 @@
 
       if (n.state === 'done' || n.state === 'skip') continue;
 
-      if (dt < scrollSec + 0.3 && dt > -1.2) {
+      const dur = n.dur || 0.5;
+      if (dt < scrollSec + 0.3 && dt > -(dur + 1.2)) {
         if (!n.elem) createNote(n, laneW);
-        const p = 1 - dt / scrollSec;
-        n.elem.style.transform = 'translate3d(0,' + (startY + p * (endY - startY)).toFixed(1) + 'px,0)';
+        /* 막대의 아래끝이 판정선에 닿는 순간이 '치기 시작' 입니다 */
+        const bottom = judgeY * (1 - dt / scrollSec);
+        n.elem.style.transform = 'translate3d(0,' + (bottom - n.height).toFixed(1) + 'px,0)';
       } else if (n.elem) {
         removeNote(n);
       }
@@ -276,13 +288,34 @@
 
   function createNote(n, laneW) {
     const col = GChords.colorOf(n.chord);
+    const dur = n.dur || 0.5;
+    const h = Math.max(headH, judgeY * dur / settings.scrollSec);
+    n.height = h;
+
     const d = document.createElement('div');
     d.className = 'note';
-    d.style.height = NOTE_H + 'px';
+    d.style.height = h + 'px';
     d.style.width = laneW + 'px';
     d.style.left = (n.lane * laneW) + 'px';
-    d.innerHTML = '<div class="note-inner" style="background:linear-gradient(180deg,' +
+
+    let html = '<div class="note-body" style="background:linear-gradient(180deg,' +
+      col.light + ',' + col.main + ')"></div>';
+
+    /* 치는 순간마다 화살표 — 판정선을 지나갈 때 치면 됩니다 */
+    if (n.pat && global.GStrum) {
+      const marks = GStrum.times(song, n.pat, n.t, n.t + dur);
+      for (let i = 0; i < marks.length; i++) {
+        const off = (marks[i].t - n.t) / dur * h;
+        if (off < headH * 0.8) continue;              // 머리와 겹치면 생략
+        html += '<i class="strum" style="bottom:' + off.toFixed(1) + 'px">' +
+          GStrum.arrow(marks[i].dir) + '</i>';
+      }
+    }
+
+    html += '<div class="note-head" style="height:' + headH + 'px;background:linear-gradient(180deg,' +
       col.light + ',' + col.main + ')">' + n.chord + '</div>';
+
+    d.innerHTML = html;
     el.layer.appendChild(d);
     n.elem = d;
   }

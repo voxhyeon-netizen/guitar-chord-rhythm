@@ -198,19 +198,35 @@ a.btn { text-decoration: none; display: inline-block; }
   display: flex; align-items: center; justify-content: center;
   will-change: transform;
 }
-.note-inner {
-  width: 90%; height: 100%; border-radius: 14px;
-  border: 3px solid rgba(0,0,0,.55);
+/* 코드를 치고 있는 동안을 나타내는 막대 */
+.note-body {
+  position: absolute; left: 5%; right: 5%; top: 0; bottom: 0;
+  border-radius: 14px; border: 3px solid rgba(0,0,0,.45);
+  opacity: .4;
+}
+/* 치는 순간을 알려주는 화살표 — 판정선을 지날 때마다 한 번씩 칩니다 */
+.note .strum {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  font-style: normal; font-weight: 900; line-height: 1; pointer-events: none;
+  font-size: clamp(16px, 2.4vh, 30px);
+  color: #16233c; background: rgba(255,255,255,.82);
+  border: 2px solid rgba(0,0,0,.35); border-radius: 8px;
+  padding: 2px 7px 3px;
+}
+/* 막대의 머리 — 여기가 판정선에 닿는 순간이 '치기 시작' 입니다 */
+.note-head {
+  position: absolute; left: 5%; right: 5%; bottom: 0;
+  border-radius: 14px; border: 3px solid rgba(0,0,0,.55);
   display: flex; align-items: center; justify-content: center;
   /* 교실 뒤에서도 읽혀야 합니다 — 화면이 클수록 코드 글씨도 커집니다 */
   font-size: clamp(26px, 4.6vh, 58px); font-weight: 900; color: #10203a;
   box-shadow: 0 5px 0 rgba(0,0,0,.4), inset 0 -6px 0 rgba(0,0,0,.12);
   text-shadow: 0 1px 0 rgba(255,255,255,.4);
 }
-.note.target .note-inner { outline: 4px solid #fff; outline-offset: 2px; animation: pulse .4s infinite alternate; }
+.note.target .note-head { outline: 4px solid #fff; outline-offset: 2px; animation: pulse .4s infinite alternate; }
 @keyframes pulse { from { outline-color: rgba(255,255,255,.45); } to { outline-color: #fff; } }
 .note.done { opacity: 0; transition: opacity .18s, transform .18s; }
-.note.hit-good .note-inner { background: #fff !important; }
+.note.hit-good .note-head { background: #fff !important; }
 
 .judge-line {
   position: absolute; left: 0; right: 0; height: 0;
