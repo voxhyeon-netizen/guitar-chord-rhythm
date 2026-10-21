@@ -2,6 +2,42 @@
   "format": "gchord-songs-v1",
   "songs": [
     {
+      "id": "smvi2v0k1v53u",
+      "title": "Track 01 엄마돼지 아기돼지  미치도록 쉬운 기타 1 100%",
+      "audio": "smvi2v0k1v53u.m4a",
+      "bpm": 90,
+      "offset": 0,
+      "beatsPerBar": 4,
+      "snap": "1",
+      "duration": 57.028209,
+      "updatedAt": 1792585060053,
+      "notes": []
+    },
+    {
+      "id": "smvi2ve2pj523",
+      "title": "Track 01 엄마돼지 아기돼지  미치도록 쉬운 기타 1 100%",
+      "audio": "smvi2ve2pj523.m4a",
+      "bpm": 90,
+      "offset": 0,
+      "beatsPerBar": 4,
+      "snap": "1",
+      "duration": 57.028209,
+      "updatedAt": 1792585077565,
+      "notes": []
+    },
+    {
+      "id": "smvi2wd4qaq0h",
+      "title": "Track 01 엄마돼지 아기돼지  미치도록 쉬운 기타 1 100%",
+      "audio": "smvi2wd4qaq0h.m4a",
+      "bpm": 90,
+      "offset": 0,
+      "beatsPerBar": 4,
+      "snap": "1",
+      "duration": 57.028209,
+      "updatedAt": 1792585122983,
+      "notes": []
+    },
+    {
       "id": "smvhoowvwtrfn",
       "title": "나비야(통기타)",
       "audio": "smvhoowvwtrfn.mp3",
@@ -155,11 +191,11 @@
       "title": "또 만나요(통기타)",
       "audio": "smvhowd8k5bpk.mp3",
       "bpm": 90,
-      "offset": 2.664,
+      "offset": 2.671,
       "beatsPerBar": 4,
       "snap": "1",
-      "duration": 53.333333333333336,
-      "updatedAt": 1792562023159,
+      "duration": 53.333333,
+      "updatedAt": 1792584981985,
       "notes": [
         {
           "t": 8,

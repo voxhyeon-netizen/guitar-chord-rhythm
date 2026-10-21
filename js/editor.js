@@ -134,7 +134,12 @@
       el.progTimes.disabled = el.progToEnd.checked;
     });
 
-    el.tap.addEventListener('click', tapTempo);
+    /* 누르는 순간(pointerdown)에 받습니다 — click 은 손을 뗄 때라 박자가 밀립니다 */
+    el.tap.addEventListener('pointerdown', function (e) {
+      e.preventDefault();
+      tapTempo(e.timeStamp);
+    });
+    el.tap.addEventListener('click', function (e) { e.preventDefault(); });
     el.place.addEventListener('click', function () { placeAt(GAudio.now(), true); });
 
     el.canvas.addEventListener('pointerdown', onCanvasDown);
@@ -179,6 +184,8 @@
     el.beats.value = String(song.beatsPerBar);
     el.snap.value = song.snap;
     el.metro.checked = false;
+    el.tap.textContent = '탭 템포 (T)';
+    taps = [];
     el.rate.value = '1';
     GAudio.setRate(1);
     GAudio.stopMetro();
@@ -485,6 +492,11 @@
     }
     if (typing) return;
 
+    if (e.code === 'KeyT') {
+      e.preventDefault();
+      if (!e.repeat) tapTempo(e.timeStamp);
+      return;
+    }
     if (e.code === 'Delete' || e.code === 'Backspace') {
       e.preventDefault();
       removeNote(selected);
@@ -519,16 +531,13 @@
 
   /* 재생선 근처에서 '소리가 시작되는 지점'을 찾아 정확히 옮깁니다.
      박 위치를 눈대중으로 맞추지 않아도 되게 해주는 기능입니다. */
-  function snapToOnset() {
-    if (!peaks) { toast('파형을 아직 읽는 중이에요. 잠시 뒤 다시 눌러주세요.'); return; }
-    const t = GAudio.now();
+  /* t 근처에서 '소리가 시작되는 지점'을 찾습니다. 없으면 null. */
+  function nearestOnset(t, win) {
+    if (!peaks) return null;
     const res = peaks.perSecond;
-    const win = 0.45;                        // 앞뒤로 살펴볼 범위(초)
     const from = Math.max(2, Math.floor((t - win) * res));
     const to = Math.min(peaks.count - 1, Math.ceil((t + win) * res));
-    if (to <= from) { toast('맞출 소리를 찾지 못했어요.'); return; }
-
-    /* 소리가 뚜렷하게 커지는 지점들을 모은 뒤, 그중 재생선에서 가장 가까운 곳으로 갑니다 */
+    if (to <= from) return null;
     const cands = [];
     let peakJump = 0;
     for (let i = from; i <= to; i++) {
@@ -538,15 +547,21 @@
       if (jump > peakJump) peakJump = jump;
       if (jump > 0.02) cands.push({ i: i, jump: jump });
     }
-    if (!cands.length) { toast('가까운 곳에서 뚜렷한 소리를 찾지 못했어요.'); return; }
-
+    if (!cands.length) return null;
     const strong = cands.filter(function (c) { return c.jump >= peakJump * 0.35; });
     const pick = (strong.length ? strong : cands).reduce(function (a, b) {
       return Math.abs(b.i / res - t) < Math.abs(a.i / res - t) ? b : a;
     });
-    const bestI = pick.i;
+    return Math.max(0, pick.i / res);
+  }
 
-    const at = Math.max(0, bestI / res);
+  function snapToOnset() {
+    if (!peaks) { toast('파형을 아직 읽는 중이에요. 잠시 뒤 다시 눌러주세요.'); return; }
+    const t = GAudio.now();
+    const res = peaks.perSecond;
+    const win = 0.45;                        // 앞뒤로 살펴볼 범위(초)
+    const at = nearestOnset(t, win);
+    if (at == null) { toast('가까운 곳에서 뚜렷한 소리를 찾지 못했어요.'); return; }
     GAudio.seek(at);
     restartMetroIfOn();
     toast('소리 시작점 ' + fmt(at) + ' 으로 맞췄어요.');
@@ -558,21 +573,86 @@
     GAudio.startMetro(song.bpm, song.offset, song.beatsPerBar);
   }
 
-  function tapTempo() {
-    const now = performance.now();
-    if (taps.length && now - taps[taps.length - 1] > 2200) taps = [];
-    taps.push(now);
-    if (taps.length > 8) taps.shift();
-    GAudio.sfx.click();
-    if (taps.length < 2) { toast('박자에 맞춰 계속 눌러주세요.'); return; }
-    let sum = 0;
-    for (let i = 1; i < taps.length; i++) sum += taps[i] - taps[i - 1];
-    const bpm = Math.round(60000 / (sum / (taps.length - 1)) * 10) / 10;
+  /* 탭 템포.
+     노래를 재생한 채로 두드리면 BPM 과 첫박을 함께 잡아줍니다.
+     (각 탭의 '노래 시각'을 모아 직선으로 맞추는 방식이라 몇 번만 쳐도 안정적입니다) */
+  function tapTempo(stamp) {
+    const ms = stamp != null ? stamp : performance.now();
+    const playing = GAudio.isPlaying();
+    const songT = playing ? GAudio.now() : null;
+
+    if (taps.length && ms - taps[taps.length - 1].ms > 2500) taps = [];   // 쉬었다 치면 새로 시작
+    taps.push({ ms: ms, songT: songT });
+    if (taps.length > 12) taps.shift();
+
+    GAudio.tickNow(taps.length === 1);
+    flashTap();
+
+    if (taps.length < 2) {
+      el.tap.textContent = '탭 1…';
+      toast('노래를 재생한 채 박자에 맞춰 계속 두드리세요 (T)');
+      return;
+    }
+
+    /* 직선 맞춤: 시각 ≈ 첫박 + 순번 × 한박길이 */
+    const useSong = taps.every(function (t) { return t.songT != null; });
+    const xs = [];
+    taps.forEach(function (t, i) { xs.push(i); });
+    const ys = taps.map(function (t) { return useSong ? t.songT : t.ms / 1000; });
+    const mx = xs.reduce(function (a, b) { return a + b; }, 0) / xs.length;
+    const my = ys.reduce(function (a, b) { return a + b; }, 0) / ys.length;
+    let num = 0, den = 0;
+    for (let i = 0; i < xs.length; i++) {
+      num += (xs[i] - mx) * (ys[i] - my);
+      den += (xs[i] - mx) * (xs[i] - mx);
+    }
+    if (den <= 0) return;
+    const spb = num / den;                       // 한 박의 길이(초)
+    if (!(spb > 0.15 && spb < 2.5)) return;      // 24~400 BPM 범위 밖이면 무시
+
+    const bpm = Math.round((60 / spb) * 10) / 10;
     song.bpm = clampNum(bpm, 30, 300, song.bpm);
     el.bpm.value = song.bpm;
     dirty = true;
+
+    let msg = '탭 ' + taps.length + '회 · ' + song.bpm + ' BPM';
+    if (useSong && taps.length >= 3) {
+      let first = Math.max(0, my - spb * mx);    // 첫 번째로 두드린 박의 노래 시각
+
+      /* 귀로 듣고 손으로 치면 일정하게 늦습니다.
+         각 박 근처의 '소리 시작점'과 얼마나 어긋났는지 모아 가운데값만큼 통째로 당겨줍니다. */
+      const win = Math.min(0.18, spb * 0.3);
+      const deltas = [];
+      for (let k = 0; k < taps.length; k++) {
+        const predicted = first + k * spb;
+        const onset = nearestOnset(predicted, win);
+        if (onset != null) deltas.push(onset - predicted);
+      }
+      let note = '';
+      if (deltas.length >= 3) {
+        deltas.sort(function (a, b) { return a - b; });
+        const mid = deltas.length % 2
+          ? deltas[(deltas.length - 1) / 2]
+          : (deltas[deltas.length / 2 - 1] + deltas[deltas.length / 2]) / 2;
+        first = Math.max(0, first + mid);
+        note = ' (소리에 맞춤)';
+      } else {
+        const snapped = nearestOnset(first, win);
+        if (snapped != null) { first = snapped; note = ' (소리에 맞춤)'; }
+      }
+
+      song.offset = Math.round(first * 1000) / 1000;
+      el.offset.value = song.offset.toFixed(2);
+      msg += ' · 첫박 ' + song.offset.toFixed(2) + '초' + note;
+    }
+    el.tap.textContent = '탭 ' + taps.length + ' · ' + song.bpm;
     restartMetroIfOn();
-    toast('BPM ' + song.bpm);
+    toast(msg);
+  }
+
+  function flashTap() {
+    el.tap.classList.add('tap-hit');
+    setTimeout(function () { el.tap.classList.remove('tap-hit'); }, 90);
   }
 
   /* ---------- note list ---------- */

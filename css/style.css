@@ -396,3 +396,7 @@ html.gate-on body > .toast { display: none !important; }
 
 .sound-help { margin: -6px 0 14px; font-size: 13px; }
 .sound-help a { color: #ffa502; text-decoration: underline; }
+
+/* 탭 템포 — 누르는 즉시 눈으로도 보이게 */
+#edTap { min-width: 104px; transition: none; }
+#edTap.tap-hit { background: linear-gradient(180deg, #ffd97a, #ffa502); color: #43290a; transform: translateY(2px); }

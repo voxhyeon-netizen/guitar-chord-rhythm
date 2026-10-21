@@ -359,6 +359,17 @@
     } catch (e) { /* ignore */ }
   }
 
+  /* 탭 템포 같은 즉각 반응이 필요한 소리 — 맥에서는 Web Audio 가 가장 빠릅니다 */
+  function tickNow(strong) {
+    try {
+      const c = getCtx();
+      if (c.state === 'suspended') c.resume();
+      metroTick(!!strong, c.currentTime);
+      return;
+    } catch (e) { /* ignore */ }
+    sfx.tick(strong);
+  }
+
   function startMetro(bpm, offset, beatsPerBar) {
     stopMetro();
     if (!bpm) return;
@@ -384,7 +395,7 @@
     load: load, hasAudio: hasAudio, duration: duration,
     play: play, pause: pause, stop: stop, seek: seek, now: now, isPlaying: isPlaying,
     setRate: setRate, getRate: getRate, setVolume: setVolume, onEnd: onEnd,
-    unlock: unlock, resume: resume, state: state, testTone: testTone,
+    unlock: unlock, resume: resume, state: state, testTone: testTone, tickNow: tickNow,
     ensureDecoded: ensureDecoded, peaks: peaks, sfx: sfx,
     startMetro: startMetro, stopMetro: stopMetro, ctx: getCtx,
   };

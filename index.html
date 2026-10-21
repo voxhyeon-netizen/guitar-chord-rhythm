@@ -11,8 +11,8 @@
   <title>기타 코드 리듬 — 수업용</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=11" />
-  <script src="js/access-config.js?v=11"></script>
+  <link rel="stylesheet" href="css/style.css?v=12" />
+  <script src="js/access-config.js?v=12"></script>
   <script>
     /* 잠금이 필요한 주소면 화면을 먼저 가려 깜빡임을 막습니다 */
     (function () {
@@ -104,7 +104,7 @@
     <label class="ed-field">BPM
       <input type="number" id="edBpm" min="30" max="300" step="0.1" value="90" />
     </label>
-    <button class="btn btn-sm2" id="edTap">탭 템포</button>
+    <button class="btn btn-sm2" id="edTap" title="노래를 재생한 채 박자에 맞춰 두드리면 BPM과 첫박이 함께 잡힙니다">탭 템포 (T)</button>
     <label class="ed-field">첫박(초)
       <input type="number" id="edOffset" min="0" step="0.01" value="0" />
     </label>
@@ -179,6 +179,7 @@
   </div>
 
   <p class="ed-hint">
+    박자 잡기 — 노래를 재생한 채 <b>T</b> 를 박자에 맞춰 네 번 이상 두드리면 <b>BPM과 첫박이 한 번에</b> 잡힙니다.<br />
     <b>파형(위쪽)을 끌면</b> 재생선이 따라옵니다. 박 위치를 잡을 땐 끌어서 맞춘 뒤
     <b>⤓ 소리에 맞추기</b> → <b>지금을 첫박으로</b> 순서로 누르세요.<br />
     코드를 고른 뒤 <b>타임라인 아래쪽</b>을 클릭하면 그 위치에 놓입니다. 재생 중 <b>Enter</b> 또는 코드 버튼을 누르면 현재 지점에 바로 찍혀요.
@@ -330,12 +331,12 @@
 <div class="toast" id="toast"></div>
 
 <!-- 파일을 고친 뒤 아이패드에 반영이 안 되면 아래 v= 숫자를 올리세요 -->
-<script src="js/gate.js?v=11"></script>
-<script src="js/chords.js?v=11"></script>
-<script src="js/storage.js?v=11"></script>
-<script src="js/audio.js?v=11"></script>
-<script src="js/editor.js?v=11"></script>
-<script src="js/play.js?v=11"></script>
-<script src="js/main.js?v=11"></script>
+<script src="js/gate.js?v=12"></script>
+<script src="js/chords.js?v=12"></script>
+<script src="js/storage.js?v=12"></script>
+<script src="js/audio.js?v=12"></script>
+<script src="js/editor.js?v=12"></script>
+<script src="js/play.js?v=12"></script>
+<script src="js/main.js?v=12"></script>
 </body>
 </html>
