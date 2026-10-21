@@ -26,6 +26,7 @@
       offlineBtn: $('btnOffline'),
       offlineState: $('offlineState'),
       guide: $('btnGuide'),
+      sound: $('btnSound'),
     };
 
     GEditor.init({
@@ -48,6 +49,7 @@
     el.addSong.addEventListener('click', function () { pickAudioFor(null, null); });
     el.importChart.addEventListener('click', function () { el.fileChart.click(); });
     el.settings.addEventListener('click', openSettings);
+    el.sound.addEventListener('click', soundTest);
     el.fileAudio.addEventListener('change', onAudioChosen);
     el.fileChart.addEventListener('change', onChartChosen);
 
@@ -68,14 +70,31 @@
     });
   });
 
-  /* iOS keeps audio silent until a real gesture resumes the context. */
+  /* 아이패드는 화면을 누르는 순간에만 오디오 잠금이 풀립니다. 처음 몇 번은 계속 시도합니다. */
   function unlockAudioOnFirstTouch() {
-    try {
-      if (navigator.audioSession) navigator.audioSession.type = 'playback';
-    } catch (e) { /* ignore */ }
-    const unlock = function () { GAudio.resume(); };
-    document.addEventListener('pointerdown', unlock, { once: true });
-    document.addEventListener('touchstart', unlock, { once: true });
+    let tries = 0;
+    const unlock = function () {
+      GAudio.unlock();
+      tries++;
+      if (GAudio.state() === 'running' || tries > 5) {
+        document.removeEventListener('pointerdown', unlock, true);
+        document.removeEventListener('touchstart', unlock, true);
+      }
+    };
+    document.addEventListener('pointerdown', unlock, true);
+    document.addEventListener('touchstart', unlock, true);
+  }
+
+  function soundTest() {
+    GAudio.testTone();
+    setTimeout(function () {
+      const st = GAudio.state();
+      if (st === 'running') {
+        toast('"딩동댕" 소리가 들렸나요? 안 들리면 아이패드 음량과 무음 모드를 확인하세요.');
+      } else {
+        toast('소리가 아직 잠겨 있어요(' + st + '). 화면을 한 번 더 누른 뒤 다시 눌러보세요.');
+      }
+    }, 700);
   }
 
   /* ---------- 오프라인 저장 ---------- */
@@ -327,13 +346,15 @@
       return;
     }
     lastPlayed = song;
-    GAudio.resume();          // must happen inside the tap for iOS
+    GAudio.unlock();          // 아이패드: 누르는 그 순간에 잠금을 풀어야 소리가 납니다
     toast('곡을 준비하고 있어요…');
     ensureAudio(song)
       .then(function () {
         el.toast.classList.remove('show');
         show('play');
-        requestAnimationFrame(function () { GPlay.start(song); });
+        /* requestAnimationFrame 으로 미루면 브라우저가 화면 갱신을 멈춘 사이
+           시작 신호를 놓쳐 연주 화면이 멈춘 채로 남습니다. 바로 시작합니다. */
+        GPlay.start(song);
       })
       .catch(function (err) {
         toast('mp3를 불러오지 못했어요 (' + (err && err.message ? err.message : 'error') + ')');

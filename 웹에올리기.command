@@ -59,6 +59,10 @@ if [ ! -d .git ]; then
   git init -q || die "git 을 사용할 수 없습니다. (Xcode 명령어 도구가 필요할 수 있어요)"
   git branch -M main
 fi
+
+# mp3 는 용량이 커서 기본 설정으로는 전송이 끊깁니다 (HTTP 400)
+git config http.postBuffer 524288000
+git config http.version HTTP/1.1
 git add -A
 if ! git commit -q -m "기타 코드 리듬 업데이트" 2>/dev/null; then
   if git diff --cached --quiet; then
@@ -89,8 +93,12 @@ if "$GH" repo view "${LOGIN}/${REPO}" >/dev/null 2>&1; then
     }
   fi
 
-  echo "업로드 중…"
-  git push -u origin main || die "업로드하지 못했습니다."
+  echo "업로드 중… (곡이 많으면 1~2분 걸립니다)"
+  git push -u origin main || {
+    echo ""
+    echo "한 번 더 시도합니다…"
+    git push -u origin main || die "업로드하지 못했습니다. 인터넷 상태를 확인하고 다시 실행해 주세요."
+  }
 else
   echo "저장소 만드는 중…"
   "$GH" repo create "$REPO" --public --source=. --remote=origin --push || die "저장소를 만들지 못했습니다."

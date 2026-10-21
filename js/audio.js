@@ -25,6 +25,38 @@
     return Promise.resolve();
   }
 
+  /* iOS(아이패드)는 화면을 누르는 그 순간에 '실제로 소리를 내야' 오디오 잠금이 풀립니다.
+     resume() 만으로는 부족해서 길이 1짜리 무음을 같이 재생합니다. */
+  function unlock() {
+    try {
+      if (navigator.audioSession) navigator.audioSession.type = 'playback';
+    } catch (e) { /* 지원하지 않는 버전 */ }
+    let p = Promise.resolve();
+    try {
+      const c = getCtx();
+      if (c.state === 'suspended') p = c.resume();
+      const b = c.createBuffer(1, 1, 22050);
+      const src = c.createBufferSource();
+      src.buffer = b;
+      src.connect(c.destination);
+      src.start(0);
+    } catch (e) { /* ignore */ }
+    return p;
+  }
+
+  function state() {
+    try { return getCtx().state; } catch (e) { return 'none'; }
+  }
+
+  /* 소리가 나는지 확인용 — 짧은 음 세 개 */
+  function testTone() {
+    unlock();
+    const c = getCtx();
+    [523, 659, 784].forEach(function (f, i) {
+      blip(f, 0.22, 'sine', 0.2, c.currentTime + i * 0.2);
+    });
+  }
+
   function load(blob) {
     const c = getCtx();
     return blob.arrayBuffer().then(function (ab) {
@@ -195,6 +227,9 @@
   }
   global.GAudio = {
     resume: resume,
+    unlock: unlock,
+    state: state,
+    testTone: testTone,
     load: load,
     hasAudio: hasAudio,
     duration: duration,

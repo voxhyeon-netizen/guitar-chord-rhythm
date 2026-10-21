@@ -25,6 +25,7 @@
   let audioStarted = false;
   let pendingTicks = [];
   let pausedLeadT = 0;
+  let kickTimer = 0;
 
   function $(id) { return document.getElementById(id); }
 
@@ -126,7 +127,17 @@
 
     GAudio.onEnd(finish);
     GAudio.seek(0);
-    GAudio.resume();
+    GAudio.unlock();
+    /* 화면 갱신(rAF)이 멈춰 있어도 연주는 시작되도록 하는 보조 장치 */
+    clearTimeout(kickTimer);
+    kickTimer = setTimeout(function () {
+      if (active && !paused && !audioStarted && songTime() >= 0) {
+        audioStarted = true;
+        GAudio.play(0);
+        el.countOverlay.classList.remove('show');
+      }
+      if (active && !rafId) loop();
+    }, Math.max(400, leadSec * 1000 + 200));
     if (beats > 0) el.countOverlay.classList.add('show');
     el.countNum.textContent = beats > 0 ? String(beats) : '';
     loop();
@@ -174,6 +185,9 @@
 
   function measure() {
     const h = el.field.clientHeight;
+    if (!h || !el.field.clientWidth) {         // 화면이 아직 잡히지 않음 — 곧 다시 잽니다
+      setTimeout(function () { if (active) measure(); }, 60);
+    }
     footH = (settings.showDiagram && (GChords.shape(lanes[0]) || lanes.length === 1)) ? 122 : 46;
     judgeY = Math.max(140, h - footH);
     el.line.style.top = judgeY + 'px';
@@ -208,6 +222,11 @@
         audioStarted = true;
         GAudio.play(0);
         el.countOverlay.classList.remove('show');
+        /* 아이패드에서 소리가 잠긴 채 시작되면 알려줍니다 */
+        if (GAudio.state() !== 'running' && global.GMain) {
+          GAudio.unlock();
+          GMain.toast('소리가 잠겨 있어요. 화면을 한 번 누르고, 음량·무음 모드를 확인하세요.');
+        }
       }
     }
 
@@ -466,6 +485,8 @@
     paused = false;
     if (rafId) cancelAnimationFrame(rafId);
     rafId = 0;
+    clearTimeout(kickTimer);
+    kickTimer = 0;
     el.countOverlay.classList.remove('show');
     el.pauseOverlay.classList.remove('show');
     GAudio.onEnd(null);
