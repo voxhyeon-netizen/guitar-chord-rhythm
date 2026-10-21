@@ -292,11 +292,16 @@
         '</div>';
       const chipRow = document.createElement('div');
       chipRow.className = 'sc-chords';
-      chords.slice(0, 8).forEach(function (c) {
+      /* 연주 화면의 줄 색과 똑같이 — 한 곡 안에서 색이 겹치지 않게 */
+      const chipCols = GChords.distinctColors(chords.map(function (c) {
+        return GChords.shape(c) ? c : 'C';
+      }));
+      chords.slice(0, 8).forEach(function (c, i) {
         const s = document.createElement('span');
         s.className = 'chip';
         s.textContent = c;
-        s.style.background = GChords.colorOf(c).dark;
+        s.style.background = (chipCols[i] || GChords.colorOf(c)).main;
+        s.style.color = '#10203a';
         chipRow.appendChild(s);
       });
       main.appendChild(chipRow);

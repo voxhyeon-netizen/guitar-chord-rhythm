@@ -17,6 +17,7 @@
   let judgeY = 0;
   let footH = 0;
   let headH = NOTE_H;      // 막대 머리 높이 — 화면 크기에 맞춰 정해집니다
+  let laneColors = [];     // 줄마다 겹치지 않게 정해 둔 색
   let GAP = 14;
   let stats = null;
   let lastTarget = null;
@@ -197,11 +198,15 @@
       seen.forEach(function (c, i) { laneOfChord[c] = i; });
     }
 
+    laneColors = GChords.distinctColors(lanes.map(function (n) {
+      return GChords.shape(n) ? n : 'C';
+    }));
+
     el.cols.innerHTML = '';
     el.feet.innerHTML = '';
-    lanes.forEach(function (name) {
+    lanes.forEach(function (name, li) {
       const isReal = !!GChords.shape(name);
-      const col = GChords.colorOf(isReal ? name : 'C');
+      const col = laneColors[li];
       const c = document.createElement('div');
       c.className = 'lane-col';
       c.style.setProperty('--glow', col.main);
@@ -307,7 +312,7 @@
   }
 
   function createNote(n, laneW) {
-    const col = GChords.colorOf(n.chord);
+    const col = laneColors[n.lane] || GChords.colorOf(n.chord);
     const dur = n.dur || 0.5;
     const h = Math.max(headH, judgeY * dur / settings.scrollSec);
     n.height = h;
@@ -632,7 +637,7 @@
     const laneW = el.field.clientWidth / Math.max(1, lanes.length);
     const x = lane < 0 ? el.field.clientWidth / 2 : lane * laneW + laneW / 2;
     const y = judgeY - NOTE_H / 2;
-    const hue = lane < 0 ? 45 : GChords.colorOf(lanes[lane] || 'C').hue;
+    const hue = lane < 0 ? 45 : ((laneColors[lane] || GChords.colorOf('C')).hue);
 
     for (let i = 0; i < count; i++) {
       const s = document.createElement('i');
@@ -657,8 +662,8 @@
     c.classList.add('flash');
     setTimeout(function () {
       c.classList.remove('flash');
-      const name = lanes[lane];
-      c.style.setProperty('--glow', GChords.colorOf(GChords.shape(name) ? name : 'C').main);
+      const col = laneColors[lane];
+      if (col) c.style.setProperty('--glow', col.main);
     }, 170);
   }
 

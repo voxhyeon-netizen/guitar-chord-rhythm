@@ -52,15 +52,70 @@
     return m ? m[1] : 'C';
   }
 
+  /* 코드 성질 — 같은 뿌리음이라도 A 와 A7 은 색이 확실히 달라야 합니다 */
+  const QUALITY = {
+    '':      { h: 0,   s: 80, l: 56 },   // 메이저
+    'm':     { h: -18, s: 48, l: 42 },   // 마이너 — 어둡고 차분하게
+    '7':     { h: 28,  s: 92, l: 71 },   // 세븐 — 틀고 또렷하게 밝게
+    'maj7':  { h: 14,  s: 58, l: 75 },
+    'm7':    { h: -32, s: 42, l: 50 },
+    '6':     { h: 20,  s: 72, l: 66 },
+    'sus4':  { h: 38,  s: 68, l: 63 },
+    'sus2':  { h: 34,  s: 64, l: 68 },
+    'add9':  { h: 10,  s: 76, l: 70 },
+    'dim':   { h: -44, s: 38, l: 38 },
+    'aug':   { h: 44,  s: 82, l: 62 },
+  };
+
+  function qualityOf(name) {
+    const clean = String(name || '').replace(/\s*\(.*?\)\s*/g, '');   // 'F(쉬움)' → 'F'
+    const m = /^[A-G][#b]?(.*)$/.exec(clean);
+    return m ? m[1] : '';
+  }
+
   function colorOf(name) {
-    const hue = ROOT_HUE[rootOf(name)] != null ? ROOT_HUE[rootOf(name)] : 210;
-    const minor = /m(?!aj)/.test(String(name).slice(1));
+    const base = ROOT_HUE[rootOf(name)] != null ? ROOT_HUE[rootOf(name)] : 210;
+    const q = qualityOf(name);
+    let spec = QUALITY[q];
+    if (!spec) {
+      /* 표에 없는 성질은 이름에서 일정한 값을 뽑아 씁니다 (늘 같은 색이 되도록) */
+      let hash = 0;
+      for (let i = 0; i < q.length; i++) hash = (hash * 31 + q.charCodeAt(i)) % 360;
+      spec = { h: (hash % 70) - 30, s: 70, l: 60 };
+    }
+    const hue = ((base + spec.h) % 360 + 360) % 360;
+    return makeColor(hue, spec.s, spec.l);
+  }
+
+  function makeColor(hue, s, l) {
     return {
-      hue,
-      main: 'hsl(' + hue + ', ' + (minor ? 55 : 78) + '%, ' + (minor ? 52 : 58) + '%)',
-      dark: 'hsl(' + hue + ', ' + (minor ? 55 : 70) + '%, 34%)',
-      light: 'hsl(' + hue + ', ' + (minor ? 60 : 85) + '%, 72%)',
+      hue: hue, sat: s, lum: l,
+      main: 'hsl(' + hue + ', ' + s + '%, ' + l + '%)',
+      dark: 'hsl(' + hue + ', ' + Math.min(95, s + 5) + '%, ' + Math.max(22, l - 26) + '%)',
+      light: 'hsl(' + hue + ', ' + Math.min(95, s + 8) + '%, ' + Math.min(88, l + 16) + '%)',
     };
+  }
+
+  /* 한 곡에서 쓰는 코드끼리 색이 겹치지 않게 벌려 줍니다.
+     (예: D7 과 E 가 둘 다 연두로 보이는 일을 막습니다) */
+  function distinctColors(names) {
+    const out = [];
+    for (let i = 0; i < names.length; i++) {
+      let c = colorOf(names[i]);
+      for (let guard = 0; guard < 14; guard++) {
+        let clash = false;
+        for (let j = 0; j < out.length; j++) {
+          let d = Math.abs(c.hue - out[j].hue);
+          d = Math.min(d, 360 - d);
+          const lDiff = Math.abs(c.lum - out[j].lum);
+          if (d < 28 && lDiff < 14) { clash = true; break; }
+        }
+        if (!clash) break;
+        c = makeColor((c.hue + 30) % 360, c.sat, c.lum);
+      }
+      out.push(c);
+    }
+    return out;
   }
 
   function shape(name) {
@@ -164,5 +219,8 @@
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
-  global.GChords = { shape: shape, names: names, colorOf: colorOf, diagramSvg: diagramSvg, all: CHORDS };
+  global.GChords = {
+    shape: shape, names: names, colorOf: colorOf, diagramSvg: diagramSvg,
+    distinctColors: distinctColors, all: CHORDS,
+  };
 })(window);
