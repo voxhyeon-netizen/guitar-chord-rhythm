@@ -261,13 +261,7 @@
     if (loadedAudioId === song.id && GAudio.hasAudio()) return Promise.resolve();
     const url = GStore.audioUrl(song);
     if (!url) return Promise.reject(new Error('no-audio'));
-    return fetch(url, { cache: 'no-store' })
-      .then(function (r) {
-        if (!r.ok) throw new Error('http-' + r.status);
-        return r.blob();
-      })
-      .then(function (blob) { return GAudio.load(blob); })
-      .then(function () { loadedAudioId = song.id; });
+    return GAudio.load(url).then(function () { loadedAudioId = song.id; });
   }
 
   /* Pick an mp3: song=null creates a new one. */

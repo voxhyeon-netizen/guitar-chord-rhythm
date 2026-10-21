@@ -184,10 +184,16 @@
 
   /* Recompute waveform + width after the audio changed. */
   function refreshAudio() {
-    peaks = GAudio.hasAudio() ? GAudio.peaks(PEAK_RES) : null;
+    peaks = null;
     song.duration = GAudio.duration();
     el.file.textContent = song.audio || '(mp3 없음)';
     layout();
+    if (!GAudio.hasAudio()) return;
+    /* 파형을 그리려면 음원을 한 번 해독해야 합니다 (채보 화면에서만) */
+    GAudio.ensureDecoded().then(function () {
+      peaks = GAudio.peaks(PEAK_RES);
+      if (!song.duration) song.duration = GAudio.duration();
+    }).catch(function () { peaks = null; });
   }
 
   function getSong() {

@@ -222,11 +222,14 @@
         audioStarted = true;
         GAudio.play(0);
         el.countOverlay.classList.remove('show');
-        /* 아이패드에서 소리가 잠긴 채 시작되면 알려줍니다 */
-        if (GAudio.state() !== 'running' && global.GMain) {
-          GAudio.unlock();
-          GMain.toast('소리가 잠겨 있어요. 화면을 한 번 누르고, 음량·무음 모드를 확인하세요.');
-        }
+        /* 소리가 실제로 시작됐는지 확인하고, 안 되면 알려줍니다 */
+        setTimeout(function () {
+          if (active && !paused && !GAudio.isPlaying() && global.GMain) {
+            GAudio.unlock();
+            GAudio.play(songTime());
+            GMain.toast('소리를 시작하지 못했어요. 화면을 한 번 누르고 다시 시도해 주세요.');
+          }
+        }, 500);
       }
     }
 
