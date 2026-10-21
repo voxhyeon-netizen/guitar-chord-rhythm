@@ -14,6 +14,7 @@
   /* 재생 위치 보간용 — currentTime 은 띄엄띄엄 갱신돼서 그대로 쓰면 노트가 끊겨 보입니다 */
   let lastCt = -1;
   let lastCtAt = 0;
+  let seekTarget = null;   // 옮긴 위치를 브라우저가 따라오기 전에도 화면에 바로 반영
 
   function element() {
     if (el) return el;
@@ -66,7 +67,9 @@
   function play(from) {
     const a = element();
     if (from != null) {
-      try { a.currentTime = Math.max(0, Math.min(from, duration() || from)); } catch (e) { /* ignore */ }
+      const t = Math.max(0, Math.min(from, duration() || from));
+      seekTarget = t;
+      try { a.currentTime = t; } catch (e) { /* ignore */ }
     }
     a.playbackRate = rate;
     a.volume = volume;
@@ -86,7 +89,9 @@
 
   function seek(sec) {
     const a = element();
-    try { a.currentTime = Math.max(0, Math.min(sec, duration() || sec)); } catch (e) { /* ignore */ }
+    const t = Math.max(0, Math.min(sec, duration() || sec));
+    seekTarget = t;
+    try { a.currentTime = t; } catch (e) { /* ignore */ }
     lastCt = -1;
   }
 
@@ -94,6 +99,12 @@
   function now() {
     if (!el) return 0;
     const t = el.currentTime || 0;
+    if (seekTarget != null) {
+      /* 브라우저가 아직 못 따라왔으면 옮긴 위치를 그대로 보여줍니다 */
+      if (Math.abs(t - seekTarget) < 0.3) seekTarget = null;
+      else if (el.paused) return seekTarget;
+      else seekTarget = null;
+    }
     if (el.paused) { lastCt = -1; return t; }
     const ms = performance.now();
     if (t !== lastCt) { lastCt = t; lastCtAt = ms; return t; }

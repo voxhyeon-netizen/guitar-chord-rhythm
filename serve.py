@@ -62,6 +62,7 @@ def lan_ip():
 class Handler(http.server.SimpleHTTPRequestHandler):
     def end_headers(self):
         self.send_header('Cache-Control', 'no-store')
+        self.send_header('Accept-Ranges', 'bytes')
         super().end_headers()
 
     def log_message(self, fmt, *args):
@@ -87,7 +88,59 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         if self.path.split('?')[0] == '/api/ping':
             self.send_json({'ok': True, 'writable': True, 'folder': DIR})
             return
+        # 재생 위치 이동(채보 화면의 재생선)에는 Range 응답이 꼭 필요합니다
+        if self.headers.get('Range') and self.serve_range():
+            return
         super().do_GET()
+
+    def serve_range(self):
+        """바이트 범위 요청 처리. 못 하면 False 를 돌려 일반 응답으로 넘깁니다."""
+        try:
+            path = self.translate_path(self.path)
+            if not os.path.isfile(path):
+                return False
+            m = re.match(r'bytes=(\d*)-(\d*)\s*$', self.headers.get('Range', '').strip())
+            if not m:
+                return False
+            size = os.path.getsize(path)
+            first, last = m.group(1), m.group(2)
+            if first == '':
+                if last == '':
+                    return False
+                start = max(0, size - int(last))
+                end = size - 1
+            else:
+                start = int(first)
+                end = int(last) if last else size - 1
+            if start >= size or start > end:
+                self.send_response(416)
+                self.send_header('Content-Range', f'bytes */{size}')
+                self.end_headers()
+                return True
+            end = min(end, size - 1)
+            length = end - start + 1
+
+            ctype = self.guess_type(path)
+            self.send_response(206)
+            self.send_header('Content-Type', ctype)
+            self.send_header('Content-Range', f'bytes {start}-{end}/{size}')
+            self.send_header('Content-Length', str(length))
+            self.send_header('Accept-Ranges', 'bytes')
+            self.end_headers()
+            with open(path, 'rb') as f:
+                f.seek(start)
+                remaining = length
+                while remaining > 0:
+                    chunk = f.read(min(64 * 1024, remaining))
+                    if not chunk:
+                        break
+                    self.wfile.write(chunk)
+                    remaining -= len(chunk)
+            return True
+        except (BrokenPipeError, ConnectionResetError):
+            return True
+        except Exception:
+            return False
 
     def do_POST(self):
         path = self.path.split('?')[0]

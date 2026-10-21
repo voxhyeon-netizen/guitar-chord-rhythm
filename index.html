@@ -11,8 +11,8 @@
   <title>기타 코드 리듬 — 수업용</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=9" />
-  <script src="js/access-config.js?v=9"></script>
+  <link rel="stylesheet" href="css/style.css?v=10" />
+  <script src="js/access-config.js?v=10"></script>
   <script>
     /* 잠금이 필요한 주소면 화면을 먼저 가려 깜빡임을 막습니다 */
     (function () {
@@ -108,6 +108,7 @@
     <label class="ed-field">첫박(초)
       <input type="number" id="edOffset" min="0" step="0.01" value="0" />
     </label>
+    <button class="btn btn-sm2" id="edSnapSound" title="재생선을 가까운 소리 시작점에 정확히 맞춥니다">⤓ 소리에 맞추기</button>
     <button class="btn btn-sm2" id="edSetOffset">지금을 첫박으로</button>
     <label class="ed-field">박자
       <select id="edBeats">
@@ -178,7 +179,9 @@
   </div>
 
   <p class="ed-hint">
-    코드를 고른 뒤 <b>타임라인을 클릭</b>하면 그 위치에 놓입니다. 재생 중 <b>Enter</b> 또는 코드 버튼을 누르면 현재 지점에 바로 찍혀요.
+    <b>파형(위쪽)을 끌면</b> 재생선이 따라옵니다. 박 위치를 잡을 땐 끌어서 맞춘 뒤
+    <b>⤓ 소리에 맞추기</b> → <b>지금을 첫박으로</b> 순서로 누르세요.<br />
+    코드를 고른 뒤 <b>타임라인 아래쪽</b>을 클릭하면 그 위치에 놓입니다. 재생 중 <b>Enter</b> 또는 코드 버튼을 누르면 현재 지점에 바로 찍혀요.
     노트를 <b>클릭</b>해 선택 → <b>Delete</b> 삭제, <b>드래그</b>로 이동. <b>Space</b> 재생/정지.
   </p>
 
@@ -327,12 +330,12 @@
 <div class="toast" id="toast"></div>
 
 <!-- 파일을 고친 뒤 아이패드에 반영이 안 되면 아래 v= 숫자를 올리세요 -->
-<script src="js/gate.js?v=9"></script>
-<script src="js/chords.js?v=9"></script>
-<script src="js/storage.js?v=9"></script>
-<script src="js/audio.js?v=9"></script>
-<script src="js/editor.js?v=9"></script>
-<script src="js/play.js?v=9"></script>
-<script src="js/main.js?v=9"></script>
+<script src="js/gate.js?v=10"></script>
+<script src="js/chords.js?v=10"></script>
+<script src="js/storage.js?v=10"></script>
+<script src="js/audio.js?v=10"></script>
+<script src="js/editor.js?v=10"></script>
+<script src="js/play.js?v=10"></script>
+<script src="js/main.js?v=10"></script>
 </body>
 </html>

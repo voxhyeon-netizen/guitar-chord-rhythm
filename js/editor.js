@@ -16,6 +16,7 @@
   let dirty = false;
   let hoverT = null;
   let dragging = null;     // { index, grabDt }
+  let scrubbing = false;   // 파형 위를 끌어서 재생선 옮기는 중
   let rafId = 0;
   let active = false;
   let taps = [];
@@ -42,6 +43,7 @@
       tap: $('edTap'),
       offset: $('edOffset'),
       setOffset: $('edSetOffset'),
+      snapSound: $('edSnapSound'),
       beats: $('edBeats'),
       snap: $('edSnap'),
       metro: $('edMetro'),
@@ -93,6 +95,7 @@
       dirty = true;
       restartMetroIfOn();
     });
+    el.snapSound.addEventListener('click', snapToOnset);
     el.setOffset.addEventListener('click', function () {
       song.offset = Math.round(GAudio.now() * 1000) / 1000;
       el.offset.value = song.offset.toFixed(2);
@@ -183,6 +186,7 @@
     refreshAudio();
     setBrush(brush);
     layout();
+    el.timeline.scrollLeft = 0;
     renderNoteList();
     loop();
   }
@@ -415,7 +419,8 @@
     const y = e.clientY - r.top;
     const t = (e.clientX - r.left + el.timeline.scrollLeft) / pxPerSec;
 
-    if (y < NOTE_TOP - 4) {   // waveform / ruler area -> seek
+    if (y < NOTE_TOP - 4) {   // 파형·마디 영역 → 재생선 이동 (끌면 계속 따라옵니다)
+      scrubbing = true;
       GAudio.seek(Math.max(0, t));
       if (el.metro.checked) restartMetroIfOn();
       return;
@@ -437,6 +442,11 @@
     const t = (e.clientX - r.left + el.timeline.scrollLeft) / pxPerSec;
     hoverT = y >= NOTE_TOP - 4 ? snapTime(t) : null;
 
+    if (scrubbing) {
+      GAudio.seek(Math.max(0, t));
+      return;
+    }
+
     if (dragging) {
       const n = song.notes[dragging.index];
       if (!n) { dragging = null; return; }
@@ -446,6 +456,10 @@
   }
 
   function onCanvasUp() {
+    if (scrubbing) {
+      scrubbing = false;
+      if (el.metro.checked) restartMetroIfOn();
+    }
     if (!dragging) return;
     const moved = song.notes[dragging.index];
     dragging = null;
@@ -501,6 +515,41 @@
         el.playPause.textContent = '❚❚';
       }
     });
+  }
+
+  /* 재생선 근처에서 '소리가 시작되는 지점'을 찾아 정확히 옮깁니다.
+     박 위치를 눈대중으로 맞추지 않아도 되게 해주는 기능입니다. */
+  function snapToOnset() {
+    if (!peaks) { toast('파형을 아직 읽는 중이에요. 잠시 뒤 다시 눌러주세요.'); return; }
+    const t = GAudio.now();
+    const res = peaks.perSecond;
+    const win = 0.45;                        // 앞뒤로 살펴볼 범위(초)
+    const from = Math.max(2, Math.floor((t - win) * res));
+    const to = Math.min(peaks.count - 1, Math.ceil((t + win) * res));
+    if (to <= from) { toast('맞출 소리를 찾지 못했어요.'); return; }
+
+    /* 소리가 뚜렷하게 커지는 지점들을 모은 뒤, 그중 재생선에서 가장 가까운 곳으로 갑니다 */
+    const cands = [];
+    let peakJump = 0;
+    for (let i = from; i <= to; i++) {
+      const energy = peaks.max[i] - peaks.min[i];
+      const prev = ((peaks.max[i - 1] - peaks.min[i - 1]) + (peaks.max[i - 2] - peaks.min[i - 2])) / 2;
+      const jump = energy - prev * 1.15;
+      if (jump > peakJump) peakJump = jump;
+      if (jump > 0.02) cands.push({ i: i, jump: jump });
+    }
+    if (!cands.length) { toast('가까운 곳에서 뚜렷한 소리를 찾지 못했어요.'); return; }
+
+    const strong = cands.filter(function (c) { return c.jump >= peakJump * 0.35; });
+    const pick = (strong.length ? strong : cands).reduce(function (a, b) {
+      return Math.abs(b.i / res - t) < Math.abs(a.i / res - t) ? b : a;
+    });
+    const bestI = pick.i;
+
+    const at = Math.max(0, bestI / res);
+    GAudio.seek(at);
+    restartMetroIfOn();
+    toast('소리 시작점 ' + fmt(at) + ' 으로 맞췄어요.');
   }
 
   function restartMetroIfOn() {
