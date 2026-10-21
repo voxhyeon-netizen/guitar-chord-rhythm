@@ -2,18 +2,29 @@
    When the local server is running the page can write songs back to the folder. */
 (function (global) {
   const SETTINGS_KEY = 'gchord.settings.v1';
+  const BEST_KEY = 'gchord.best.v1';
   const MANIFEST_URL = 'songs/songs.json';
 
   const DEFAULT_SETTINGS = {
-    scrollSec: 2.4,      // travel time from top of lane to judge line
-    earlyWindow: 0.6,    // how long before the beat a note can be judged
-    lateWindow: 0.45,    // grace period after the beat
+    scrollSec: 2.6,      // travel time from top of lane to judge line
+    earlyWindow: 0.7,    // how long before the beat a note can be judged
+    lateWindow: 0.55,    // grace period after the beat
     autoMiss: true,      // unjudged notes become 실패 automatically
     showDiagram: true,
     countInBeats: 4,
     keyGood: 'KeyX',
     keySoso: 'KeyZ',
     keyMiss: 'KeyC',
+  };
+
+  /* 난이도 — 수업 중에 하나씩 만지지 않고 한 번에 맞춥니다.
+     쉬움: 코드가 천천히 내려오고 판정도 넉넉, 안 누르면 그냥 지나감(실패로 안 봄)
+     보통: 기본값
+     빠름: 익숙해진 반에서 */
+  const PRESETS = {
+    easy:   { label: '쉬움', scrollSec: 3.4, earlyWindow: 0.9,  lateWindow: 0.7,  autoMiss: false },
+    normal: { label: '보통', scrollSec: 2.6, earlyWindow: 0.7,  lateWindow: 0.55, autoMiss: true },
+    fast:   { label: '빠름', scrollSec: 1.8, earlyWindow: 0.45, lateWindow: 0.35, autoMiss: true },
   };
 
   let songs = [];
@@ -34,6 +45,54 @@
 
   function saveSettings(s) {
     try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); } catch (e) { /* ignore */ }
+  }
+
+  function applyPreset(name) {
+    const p = PRESETS[name];
+    if (!p) return getSettings();
+    const cur = getSettings();
+    ['scrollSec', 'earlyWindow', 'lateWindow', 'autoMiss'].forEach(function (k) { cur[k] = p[k]; });
+    saveSettings(cur);
+    return cur;
+  }
+
+  /* 지금 설정이 어느 난이도인지 — 하나라도 다르면 '직접 맞춤' */
+  function currentPreset() {
+    const cur = getSettings();
+    const hit = Object.keys(PRESETS).filter(function (name) {
+      const p = PRESETS[name];
+      return ['scrollSec', 'earlyWindow', 'lateWindow', 'autoMiss'].every(function (k) {
+        return typeof p[k] === 'boolean' ? p[k] === !!cur[k] : Math.abs(p[k] - cur[k]) < 0.001;
+      });
+    });
+    return hit[0] || '';
+  }
+
+  /* ---------- 최고 기록 ----------
+     이 기기(브라우저)에만 저장됩니다. 곡은 폴더를 따라다니지만 기록은 따라가지 않습니다. */
+  function allBest() {
+    try { return JSON.parse(localStorage.getItem(BEST_KEY) || '{}') || {}; }
+    catch (e) { return {}; }
+  }
+
+  function getBest(songId) {
+    const b = allBest()[songId];
+    return b && typeof b.score === 'number' ? b : null;
+  }
+
+  /* 점수가 올랐을 때만 덮어씁니다. 새 기록이면 true */
+  function saveBest(songId, res) {
+    const prev = getBest(songId);
+    if (prev && prev.score >= res.score) return false;
+    const all = allBest();
+    all[songId] = {
+      score: res.score,
+      acc: res.acc,
+      maxCombo: res.maxCombo,
+      date: new Date().toISOString().slice(0, 10),
+    };
+    try { localStorage.setItem(BEST_KEY, JSON.stringify(all)); } catch (e) { return false; }
+    return true;
   }
 
   /* ---------- library ---------- */
@@ -135,6 +194,11 @@
     getSettings: getSettings,
     saveSettings: saveSettings,
     defaultSettings: DEFAULT_SETTINGS,
+    presets: PRESETS,
+    applyPreset: applyPreset,
+    currentPreset: currentPreset,
+    getBest: getBest,
+    saveBest: saveBest,
     loadLibrary: loadLibrary,
     list: list,
     getSong: getSong,

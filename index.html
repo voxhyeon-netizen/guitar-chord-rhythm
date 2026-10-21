@@ -11,8 +11,8 @@
   <title>기타 코드 리듬 — 수업용</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=7" />
-  <script src="js/access-config.js?v=7"></script>
+  <link rel="stylesheet" href="css/style.css?v=8" />
+  <script src="js/access-config.js?v=8"></script>
   <script>
     /* 잠금이 필요한 주소면 화면을 먼저 가려 깜빡임을 막습니다 */
     (function () {
@@ -251,6 +251,7 @@
       <div class="rg"><span>정확도</span><b id="resAcc">0%</b></div>
     </div>
     <div class="result-comment" id="resComment"></div>
+    <div class="result-best" id="resBest"></div>
     <div class="panel-row">
       <button class="btn btn-primary btn-lg" id="resAgain">다시 연주</button>
       <button class="btn btn-back" id="resHome">목록으로</button>
@@ -262,6 +263,14 @@
 <div class="overlay" id="settingsOverlay">
   <div class="panel wide">
     <h2>⚙ 설정</h2>
+    <div class="set-row set-presets">
+      <label>난이도 <small>낙하 속도와 판정 구간을 한 번에 맞춰줍니다</small></label>
+      <div class="preset-btns">
+        <button class="btn btn-sm2" data-preset="easy">쉬움</button>
+        <button class="btn btn-sm2" data-preset="normal">보통</button>
+        <button class="btn btn-sm2" data-preset="fast">빠름</button>
+      </div>
+    </div>
     <div class="set-row">
       <label>낙하 속도 <small>코드가 위에서 판정선까지 내려오는 시간</small></label>
       <div><input type="range" id="setScroll" min="1.2" max="5" step="0.2" /> <span id="setScrollVal"></span>초</div>
@@ -296,12 +305,12 @@
 <div class="toast" id="toast"></div>
 
 <!-- 파일을 고친 뒤 아이패드에 반영이 안 되면 아래 v= 숫자를 올리세요 -->
-<script src="js/gate.js?v=7"></script>
-<script src="js/chords.js?v=7"></script>
-<script src="js/storage.js?v=7"></script>
-<script src="js/audio.js?v=7"></script>
-<script src="js/editor.js?v=7"></script>
-<script src="js/play.js?v=7"></script>
-<script src="js/main.js?v=7"></script>
+<script src="js/gate.js?v=8"></script>
+<script src="js/chords.js?v=8"></script>
+<script src="js/storage.js?v=8"></script>
+<script src="js/audio.js?v=8"></script>
+<script src="js/editor.js?v=8"></script>
+<script src="js/play.js?v=8"></script>
+<script src="js/main.js?v=8"></script>
 </body>
 </html>

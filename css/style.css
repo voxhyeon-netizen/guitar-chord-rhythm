@@ -97,6 +97,10 @@ a.btn { text-decoration: none; display: inline-block; }
 }
 .mode-note b { color: var(--accent); }
 .sc-meta .warn { color: var(--miss); }
+.sc-meta .best { color: var(--accent); }
+/* 난이도 버튼 — 지금 난이도는 주황으로 켜집니다 (.btn.on) */
+.preset-btns { display: flex; gap: 6px; }
+.set-presets .btn { min-width: 62px; }
 .home-foot { margin-top: 18px; color: var(--muted); font-size: 13px; text-align: center; opacity: .85; line-height: 1.9; }
 .home-foot b { padding: 2px 9px; border-radius: 8px; background: #33497e; color: #fff; margin: 0 2px; }
 .k-good { background: var(--good) !important; color: #10311d !important; }
@@ -318,6 +322,8 @@ a.btn { text-decoration: none; display: inline-block; }
 .result-comment { font-size: 17px; color: var(--accent); min-height: 22px; }
 /* 결과 화면에서 제일 많이 누르는 버튼 */
 .result-card .btn-lg { font-size: 22px; padding: 16px 34px; }
+.result-best { margin-top: 8px; font-size: 15px; color: var(--muted); min-height: 20px; }
+.result-best.new { color: var(--accent); font-size: 18px; }
 
 /* ===== Toast ===== */
 .toast {

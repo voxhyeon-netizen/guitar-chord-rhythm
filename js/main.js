@@ -233,6 +233,7 @@
     }
 
     songs.forEach(function (song) {
+      const best = GStore.getBest(song.id);
       const chords = [];
       (song.notes || []).forEach(function (n) { if (chords.indexOf(n.chord) < 0) chords.push(n.chord); });
 
@@ -247,6 +248,7 @@
         '<span>' + fmtDur(song.duration || 0) + '</span>' +
         '<span>BPM ' + (song.bpm || '-') + '</span>' +
         (song.audio ? '' : '<span class="warn">mp3 없음</span>') +
+        (best ? '<span class="best">★ 최고 ' + best.score.toLocaleString() + '점</span>' : '') +
         '</div>';
       const chipRow = document.createElement('div');
       chipRow.className = 'sc-chords';
@@ -452,6 +454,24 @@
       stars === 2 ? '좋아요! 조금만 더 다듬으면 완벽해요.' :
       stars === 1 ? '잘했어요. 느린 속도로 한 번 더 해볼까요?' :
       '천천히 연습해봐요. 속도를 0.75배로 낮춰보세요.';
+
+    /* 지난 기록과 견줘 보여줍니다 — 아이들이 '지난주보다 올랐다'를 느끼는 자리 */
+    const prev = GStore.getBest(song.id);
+    const isNew = GStore.saveBest(song.id, { score: res.score, acc: pct, maxCombo: res.maxCombo });
+    const bestBox = $('resBest');
+    if (isNew && prev) {
+      bestBox.innerHTML = '🎉 <b>최고 기록 경신!</b> 지난 기록 ' + prev.score.toLocaleString() + '점';
+      bestBox.className = 'result-best new';
+    } else if (isNew) {
+      bestBox.innerHTML = '🎉 <b>첫 기록이에요!</b>';
+      bestBox.className = 'result-best new';
+    } else if (prev) {
+      bestBox.innerHTML = '★ 최고 기록 ' + prev.score.toLocaleString() + '점 (' + prev.date + ')';
+      bestBox.className = 'result-best';
+    } else {
+      bestBox.textContent = '';
+      bestBox.className = 'result-best';
+    }
     show('result');
   }
 
@@ -491,6 +511,14 @@
       GStore.saveSettings(cur);
     });
 
+    Array.prototype.forEach.call(document.querySelectorAll('[data-preset]'), function (b) {
+      b.addEventListener('click', function () {
+        GStore.applyPreset(b.dataset.preset);
+        settingsValues();
+        toast(GStore.presets[b.dataset.preset].label + '으로 맞췄어요. 다음 연주부터 적용돼요.');
+      });
+    });
+
     $('setClose').addEventListener('click', function () { el.settingsOverlay.classList.remove('show'); });
     $('setReset').addEventListener('click', function () {
       GStore.saveSettings(JSON.parse(JSON.stringify(GStore.defaultSettings)));
@@ -511,6 +539,11 @@
     $('setAutoMiss').checked = !!s.autoMiss;
     $('setDiagram').checked = !!s.showDiagram;
     $('setCountIn').value = s.countInBeats;
+
+    const cur = GStore.currentPreset();
+    Array.prototype.forEach.call(document.querySelectorAll('[data-preset]'), function (b) {
+      b.classList.toggle('on', b.dataset.preset === cur);
+    });
   }
 
   function openSettings() {
