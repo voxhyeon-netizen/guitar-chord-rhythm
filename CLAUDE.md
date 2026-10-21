@@ -59,3 +59,14 @@ GitHub(`voxhyeon-netizen/guitar-chord-rhythm`, 브랜치 `main`)이 둘 사이�
 - **작업 끝낸 뒤**: `작업노트.md`를 고치고 → commit → push (또는 `웹에올리기.command`).
 - 커밋하지 않은 변경을 남겨둔 채 다른 쪽에서 작업하면 충돌한다. **끝낼 때 꼭 push**.
 - 사용자가 "데스크탑에서 하던 것"을 물으면 `작업노트.md`와 `git log`를 먼저 본다.
+
+### GitHub 계정이 두 개다 (주의)
+
+| 프로젝트 | 저장소 주인 |
+|---|---|
+| 기타코드리듬 (이 폴더) | `voxhyeon-netizen` |
+| 리듬RPG (`~/Desktop/리듬RPG`) | `Hyeon-seok-C` |
+
+맥에는 한 번에 한 계정만 로그인된다. 지금은 `voxhyeon-netizen`.
+리듬RPG 쪽에서 push가 403으로 막히면 계정이 달라서다 — `~/.config/gh/hosts.yml.backup-2026-10-21`을
+`hosts.yml`로 되돌리면 `Hyeon-seok-C`로 돌아간다. 멋대로 바꾸지 말고 사용자에게 먼저 알린다.
