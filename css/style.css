@@ -512,3 +512,9 @@ html.gate-on body > .toast { display: none !important; }
 #edLevels { display: inline-flex; gap: 6px; }
 .lvl-btn.on { background: linear-gradient(180deg, #ffd97a, #ffa502); color: #43290a; }
 .lvl-btn.empty { opacity: .55; }
+
+/* 기본 성공 방식에서는 '실패' 가 가장 큰 버튼입니다 */
+.judge-bar.auto-good .jbtn-miss { flex: 2.2; }
+.judge-bar.auto-good .jbtn-good { flex: 1; opacity: .9; }
+.judge-bar.auto-good .jbtn-soso { flex: .8; opacity: .9; }
+.judge-mode-btns { display: flex; gap: 6px; flex-wrap: wrap; }

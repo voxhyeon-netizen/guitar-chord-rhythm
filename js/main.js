@@ -176,7 +176,7 @@
   function onRemoteCheckKey(e) {
     if (!remoteCheck || curScreen !== 'home') return;
     e.preventDefault();
-    const label = GPlay.remoteLabel(e.code);
+    const label = GPlay.remoteLabel(e.code, GStore.getSettings().judgeMode === 'autoGood');
     toast(label
       ? '이 버튼 = ' + label + '  (' + e.code + ')'
       : '이 버튼은 쓰지 않는 신호예요 (' + e.code + ')');
@@ -267,10 +267,12 @@
         const best = GStore.getBest(song.id, lv);
         const row = document.createElement('button');
         row.className = 'level-row lv-' + lv;
+        const auto = GStore.getSettings().levelAutoSettings;
         row.innerHTML =
           '<b class="lv-name">▶ ' + GStore.levelLabel(lv) + '</b>' +
           '<span class="lv-meta">코드 ' + chart.notes.length + '개 · ' +
-            (global.GStrum ? GStrum.name(chart.strum) : '') + '</span>' +
+            (global.GStrum ? GStrum.name(chart.strum) : '') +
+            (auto ? ' · ' + GStore.levelSpeedLabel(lv) : '') + '</span>' +
           (best ? '<span class="lv-best">★ ' + best.score.toLocaleString() + '</span>' : '');
         row.addEventListener('click', function () { startPlay(song, lv); });
         levelBox.appendChild(row);
@@ -393,7 +395,7 @@
   }
 
   function startPlay(song, level) {
-    const lv = level || (GStore.levelsOf(song)[0] || 'normal');
+    const lv = level || song.level || (GStore.levelsOf(song)[0] || 'normal');
     song = GStore.songAtLevel(song, lv);
     if (!(song.notes || []).length) {
       toast('먼저 채보에서 코드를 찍어주세요.');
@@ -409,7 +411,7 @@
         show('play');
         /* requestAnimationFrame 으로 미루면 브라우저가 화면 갱신을 멈춘 사이
            시작 신호를 놓쳐 연주 화면이 멈춘 채로 남습니다. 바로 시작합니다. */
-        GPlay.start(song);
+        GPlay.start(song, GStore.settingsForLevel(lv));
       })
       .catch(function (err) {
         toast('mp3를 불러오지 못했어요 (' + (err && err.message ? err.message : 'error') + ')');
@@ -538,6 +540,26 @@
       });
     });
 
+    Array.prototype.forEach.call(document.querySelectorAll('[data-judgemode]'), function (b) {
+      b.addEventListener('click', function () {
+        const cur = GStore.getSettings();
+        cur.judgeMode = b.dataset.judgemode;
+        GStore.saveSettings(cur);
+        settingsValues();
+        toast(cur.judgeMode === 'autoGood'
+          ? '기본은 성공이에요. 못 친 아이가 있을 때만 리모컨을 누르세요.'
+          : '성공·살짝·실패를 직접 눌러 판정합니다.');
+      });
+    });
+
+    const levelAuto = $('setLevelAuto');
+    levelAuto.addEventListener('change', function () {
+      const cur = GStore.getSettings();
+      cur.levelAutoSettings = levelAuto.checked;
+      GStore.saveSettings(cur);
+      renderList();
+    });
+
     $('setClose').addEventListener('click', function () { el.settingsOverlay.classList.remove('show'); });
     $('setReset').addEventListener('click', function () {
       GStore.saveSettings(JSON.parse(JSON.stringify(GStore.defaultSettings)));
@@ -556,6 +578,12 @@
     $('setLate').value = s.lateWindow;
     $('setLateVal').textContent = Number(s.lateWindow).toFixed(2);
     $('setAutoMiss').checked = !!s.autoMiss;
+    $('setLevelAuto').checked = !!s.levelAutoSettings;
+    Array.prototype.forEach.call(document.querySelectorAll('[data-judgemode]'), function (b) {
+      b.classList.toggle('btn-primary', b.dataset.judgemode === (s.judgeMode || 'autoGood'));
+    });
+    const amRow = $('setAutoMissRow');
+    if (amRow) amRow.style.display = (s.judgeMode === 'manual') ? '' : 'none';
     $('setDiagram').checked = !!s.showDiagram;
     $('setCountIn').value = s.countInBeats;
 

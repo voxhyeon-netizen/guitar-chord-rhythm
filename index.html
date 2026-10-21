@@ -11,8 +11,8 @@
   <title>기타 코드 리듬 — 수업용</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=15" />
-  <script src="js/access-config.js?v=15"></script>
+  <link rel="stylesheet" href="css/style.css?v=16" />
+  <script src="js/access-config.js?v=16"></script>
   <script>
     /* 잠금이 필요한 주소면 화면을 먼저 가려 깜빡임을 막습니다 */
     (function () {
@@ -324,7 +324,18 @@
       <div><input type="range" id="setLate" min="0.15" max="1.2" step="0.05" /> <span id="setLateVal"></span>초</div>
     </div>
     <div class="set-row">
-      <label>자동 실패 <small>판정을 누르지 않고 지나가면 실패로 처리</small></label>
+      <label>판정 방식 <small>수업 중에 선생님이 어떻게 누를지</small></label>
+      <div class="judge-mode-btns">
+        <button class="btn btn-sm2" data-judgemode="autoGood">기본 성공 · 누르면 실패</button>
+        <button class="btn btn-sm2" data-judgemode="manual">직접 판정</button>
+      </div>
+    </div>
+    <div class="set-row">
+      <label>난이도에 맞춰 속도 조절 <small>쉬움은 천천히, 어려움은 빠르게 자동으로</small></label>
+      <div><label class="ed-check"><input type="checkbox" id="setLevelAuto" /> 사용</label></div>
+    </div>
+    <div class="set-row" id="setAutoMissRow">
+      <label>자동 실패 <small>'직접 판정'일 때만 — 누르지 않고 지나가면 실패로</small></label>
       <div><label class="ed-check"><input type="checkbox" id="setAutoMiss" /> 사용</label></div>
     </div>
     <div class="set-row">
@@ -345,13 +356,13 @@
 <div class="toast" id="toast"></div>
 
 <!-- 파일을 고친 뒤 아이패드에 반영이 안 되면 아래 v= 숫자를 올리세요 -->
-<script src="js/gate.js?v=15"></script>
-<script src="js/chords.js?v=15"></script>
-<script src="js/strum.js?v=15"></script>
-<script src="js/storage.js?v=15"></script>
-<script src="js/audio.js?v=15"></script>
-<script src="js/editor.js?v=15"></script>
-<script src="js/play.js?v=15"></script>
-<script src="js/main.js?v=15"></script>
+<script src="js/gate.js?v=16"></script>
+<script src="js/chords.js?v=16"></script>
+<script src="js/strum.js?v=16"></script>
+<script src="js/storage.js?v=16"></script>
+<script src="js/audio.js?v=16"></script>
+<script src="js/editor.js?v=16"></script>
+<script src="js/play.js?v=16"></script>
+<script src="js/main.js?v=16"></script>
 </body>
 </html>

@@ -9,7 +9,9 @@
     scrollSec: 2.6,      // travel time from top of lane to judge line
     earlyWindow: 0.7,    // how long before the beat a note can be judged
     lateWindow: 0.55,    // grace period after the beat
-    autoMiss: true,      // unjudged notes become 실패 automatically
+    autoMiss: true,      // (직접 판정일 때) 안 누르고 지나가면 실패로
+    judgeMode: 'autoGood',   // autoGood = 기본 성공 · 리모컨을 누르면 실패 / manual = 직접 판정
+    levelAutoSettings: true, // 난이도에 맞춰 낙하 속도·판정 구간을 자동으로
     showDiagram: true,
     countInBeats: 4,
     keyGood: 'KeyX',
@@ -34,6 +36,23 @@
     { id: 'hard',   label: '어려움' },
   ];
   const LEVEL_IDS = LEVELS.map(function (l) { return l.id; });
+
+  /* 난이도마다 어울리는 속도·판정 — 곡 카드에서 난이도를 고르면 같이 적용됩니다 */
+  const LEVEL_PRESET = { easy: 'easy', normal: 'normal', hard: 'fast' };
+
+  function settingsForLevel(level) {
+    const cur = getSettings();
+    if (!cur.levelAutoSettings) return {};
+    const p = PRESETS[LEVEL_PRESET[level]];
+    if (!p) return {};
+    const out = {};
+    ['scrollSec', 'earlyWindow', 'lateWindow', 'autoMiss'].forEach(function (k) { out[k] = p[k]; });
+    return out;
+  }
+
+  function levelSpeedLabel(level) {
+    return level === 'easy' ? '천천히' : (level === 'hard' ? '빠르게' : '기본 속도');
+  }
 
   function levelLabel(id) {
     for (let i = 0; i < LEVELS.length; i++) if (LEVELS[i].id === id) return LEVELS[i].label;
@@ -336,6 +355,8 @@
     LEVELS: LEVELS,
     levelLabel: levelLabel,
     levelsOf: levelsOf,
+    settingsForLevel: settingsForLevel,
+    levelSpeedLabel: levelSpeedLabel,
     songAtLevel: songAtLevel,
     deriveChart: deriveChart,
     richestLevel: richestLevel,

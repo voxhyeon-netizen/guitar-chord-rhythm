@@ -87,7 +87,7 @@
   }
 
   /* ---------- start ---------- */
-  function start(s) {
+  function start(s, overrides) {
     if (!GAudio.hasAudio()) {
       if (global.GMain) GMain.toast('mp3를 먼저 불러와야 연주할 수 있어요.');
       if (hooks.onExit) hooks.onExit();
@@ -95,6 +95,8 @@
     }
     song = s;
     settings = GStore.getSettings();
+    if (overrides) Object.keys(overrides).forEach(function (k) { settings[k] = overrides[k]; });
+    el.bar.classList.toggle('auto-good', settings.judgeMode === 'autoGood');
     el.scroll.value = settings.scrollSec;
     el.rate.value = String(GAudio.getRate());
     finished = false;
@@ -261,7 +263,8 @@
       const dt = n.t - t;
 
       if (n.state === 'wait' && dt < -settings.lateWindow) {
-        if (settings.autoMiss) applyJudge(n, 'miss', true);
+        if (settings.judgeMode === 'autoGood') applyJudge(n, 'good', true);
+        else if (settings.autoMiss) applyJudge(n, 'miss', true);
         else { n.state = 'skip'; stats.skip++; fadeOut(n); }
       }
 
@@ -583,7 +586,8 @@
     else if (e.code === settings.keyMiss) { e.preventDefault(); judge('miss'); }
     else {
       const kind = remoteKind(e.code);
-      if (kind) { e.preventDefault(); judge(kind); }
+      /* 기본 성공 방식에서는 리모컨 버튼이 모두 '실패' 입니다 — 못 친 아이만 눌러주세요 */
+      if (kind) { e.preventDefault(); judge(settings.judgeMode === 'autoGood' ? 'miss' : kind); }
     }
   }
 
@@ -653,7 +657,12 @@
   }
 
   /* 리모컨 확인용 — 이 키가 무슨 판정인지 알려줍니다 */
-  function remoteLabel(code) {
+  function remoteLabel(code, autoGood) {
+    if (autoGood && remoteKind(code)) return '실패';
+    return remoteLabelRaw(code);
+  }
+
+  function remoteLabelRaw(code) {
     if (REMOTE.pause.indexOf(code) >= 0 || code === 'Space' || code === 'Escape') return '일시정지';
     const kind = remoteKind(code);
     return kind === 'good' ? '성공' : kind === 'soso' ? '살짝' : kind === 'miss' ? '실패' : '';
