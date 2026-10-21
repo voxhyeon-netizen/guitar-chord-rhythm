@@ -135,8 +135,10 @@
   }
 
   /* ---------- library ---------- */
-  function loadLibrary() {
-    return fetch(MANIFEST_URL, { cache: 'no-store' })
+  function loadLibrary(fresh) {
+    /* fresh=true 면 캐시를 확실히 건너뛰고 새로 받습니다 (아이패드에서 곡이 안 보일 때) */
+    const url = MANIFEST_URL + (fresh ? '?t=' + Date.now() : '');
+    return fetch(url, { cache: 'no-store' })
       .then(function (r) { return r.ok ? r.json() : { songs: [] }; })
       .catch(function () { return { songs: [] }; })
       .then(function (data) {

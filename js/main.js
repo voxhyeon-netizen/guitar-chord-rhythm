@@ -29,6 +29,7 @@
       offlineState: $('offlineState'),
       guide: $('btnGuide'),
       sound: $('btnSound'),
+      refresh: $('btnRefresh'),
       remote: $('btnRemote'),
     };
 
@@ -53,6 +54,7 @@
     el.importChart.addEventListener('click', function () { el.fileChart.click(); });
     el.settings.addEventListener('click', openSettings);
     el.sound.addEventListener('click', soundTest);
+    el.refresh.addEventListener('click', function () { refreshLibrary(true); });
     el.remote.addEventListener('click', toggleRemoteCheck);
     el.fileAudio.addEventListener('change', onAudioChosen);
     el.fileChart.addEventListener('change', onChartChosen);
@@ -67,6 +69,7 @@
 
     unlockAudioOnFirstTouch();
     setupOffline();
+    watchForeground();
     wireSettings();
     show('home');
 
@@ -104,6 +107,39 @@
     }, 700);
   }
 
+  /* 맥에서 새로 올린 곡을 받아옵니다.
+     아이패드는 앱을 켜 둔 채로 두면 예전 목록이 남아 있어서, 돌아올 때마다 조용히 다시 받습니다. */
+  let refreshing = false;
+  function refreshLibrary(loud) {
+    if (refreshing) return Promise.resolve();
+    refreshing = true;
+    const beforeCount = GStore.list().length;
+    if (loud) toast('곡 목록을 받아오는 중…');
+    return GStore.loadLibrary(true).then(function (list) {
+      if (document.getElementById('screen-home').classList.contains('active')) renderList();
+      if (loud) {
+        toast(list.length === beforeCount
+          ? '곡 ' + list.length + '개 — 이미 최신이에요.'
+          : '곡 ' + list.length + '개를 받았어요. (전 ' + beforeCount + '개)');
+      }
+      return list;
+    }).catch(function () {
+      if (loud) toast('받아오지 못했어요. 인터넷 연결을 확인해 주세요.');
+    }).then(function (r) { refreshing = false; return r; });
+  }
+
+  /* 앱으로 돌아올 때 자동으로 다시 받기 */
+  function watchForeground() {
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState !== 'visible') return;
+      if (!document.getElementById('screen-home').classList.contains('active')) return;
+      refreshLibrary(false);
+      if (navigator.serviceWorker && navigator.serviceWorker.getRegistration) {
+        navigator.serviceWorker.getRegistration().then(function (r) { if (r) r.update(); }).catch(function () {});
+      }
+    });
+  }
+
   /* ---------- 오프라인 저장 ---------- */
   const MEDIA_CACHE = 'gchord-media-v1';
 
@@ -131,6 +167,12 @@
   function cacheEverything() {
     if (!window.caches) return;
     el.offlineBtn.disabled = true;
+    el.offlineState.classList.remove('hidden');
+    el.offlineState.textContent = '최신 곡 목록을 먼저 받는 중…';
+    refreshLibrary(false).then(doCacheEverything);
+  }
+
+  function doCacheEverything() {
     el.offlineState.classList.remove('hidden');
     el.offlineState.textContent = '저장하는 중…';
 
