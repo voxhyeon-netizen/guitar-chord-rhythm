@@ -72,10 +72,24 @@ if ! git commit -q -m "기타 코드 리듬 업데이트" 2>/dev/null; then
 fi
 
 if "$GH" repo view "${LOGIN}/${REPO}" >/dev/null 2>&1; then
-  echo "업로드 중…"
   git remote get-url origin >/dev/null 2>&1 || \
     git remote add origin "https://github.com/${LOGIN}/${REPO}.git"
   "$GH" auth setup-git >/dev/null 2>&1
+
+  # 다른 맥에서 올린 곡이 있으면 먼저 받아옵니다 (맥 두 대를 번갈아 쓸 때 필요)
+  echo "다른 맥에서 올린 곡이 있는지 확인 중…"
+  git fetch -q origin main 2>/dev/null
+  if ! git merge-base --is-ancestor origin/main HEAD 2>/dev/null; then
+    git pull --rebase -q origin main || {
+      echo ""
+      echo "⚠️  다른 맥에서 올린 내용과 겹칩니다."
+      echo "   같은 곡을 양쪽에서 고쳤을 때 생깁니다."
+      git rebase --abort 2>/dev/null
+      die "먼저 '최신곡받기.command' 를 실행해 정리한 뒤 다시 시도해 주세요."
+    }
+  fi
+
+  echo "업로드 중…"
   git push -u origin main || die "업로드하지 못했습니다."
 else
   echo "저장소 만드는 중…"
