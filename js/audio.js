@@ -10,6 +10,9 @@
   let volume = 1;
   let endCb = null;
   let unlocked = false;
+  let songUnlocked = false;
+  let unlockToken = 0;      // 잠금 해제 중에 진짜 재생이 시작되면 건드리지 않게 하는 표식
+  let unlocking = false;    // 잠금 해제용 무음 재생 중 — '재생 중'으로 세면 안 됩니다
 
   /* 재생 위치 보간용 — currentTime 은 띄엄띄엄 갱신돼서 그대로 쓰면 노트가 끊겨 보입니다 */
   let lastCt = -1;
@@ -31,6 +34,7 @@
   /* ---------- 불러오기 ---------- */
   function load(src) {
     const a = element();
+    a.muted = false;
     if (objectUrl) { URL.revokeObjectURL(objectUrl); objectUrl = null; }
     decoded = null;
     decodedFor = null;
@@ -73,13 +77,21 @@
     }
     a.playbackRate = rate;
     a.volume = volume;
+    a.muted = false;
+    unlockToken++;            // 진행 중이던 잠금 해제가 이 재생을 멈추지 못하게
+    unlocking = false;
+    songUnlocked = true;
     lastCt = -1;
     const p = a.play();
     if (p && p.catch) p.catch(function () { /* 사용자 제스처가 필요한 경우 */ });
     unlocked = true;
   }
 
-  function pause() { if (el) el.pause(); }
+  function pause() {
+    unlockToken++;            // 해제 작업이 나중에 끼어들지 않도록
+    unlocking = false;
+    if (el) el.pause();
+  }
 
   function stop() {
     if (!el) return;
@@ -111,7 +123,7 @@
     return t + ((ms - lastCtAt) / 1000) * rate;
   }
 
-  function isPlaying() { return !!(el && !el.paused && !el.ended); }
+  function isPlaying() { return !!(el && !el.paused && !el.ended && !unlocking); }
 
   function setRate(r) {
     rate = r;
@@ -132,19 +144,28 @@
   function unlock() {
     try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) { /* ignore */ }
     unlockSfx();
-    if (el && el.paused && el.src) {
+    /* 노래 요소는 한 번만, 그리고 재생 중이 아닐 때만 건드립니다.
+       (해제 도중에 진짜 재생이 시작되면 그대로 두어야 소리가 끊기지 않습니다) */
+    if (!songUnlocked && el && el.paused && el.src) {
+      songUnlocked = true;
+      const token = ++unlockToken;
       const wasMuted = el.muted;
+      unlocking = true;
       el.muted = true;
       const p = el.play();
       if (p && p.then) {
         p.then(function () {
+          unlocked = true;
+          if (token !== unlockToken) return;   // 그 사이 진짜 재생이 시작됨 → 두고 나감
           el.pause();
           el.muted = wasMuted;
-          unlocked = true;
-        }).catch(function () { el.muted = wasMuted; });
+          unlocking = false;
+        }).catch(function () {
+          if (token === unlockToken) { el.muted = wasMuted; unlocking = false; }
+        });
       } else {
-        el.pause();
-        el.muted = wasMuted;
+        if (token === unlockToken) { el.pause(); el.muted = wasMuted; }
+        unlocking = false;
       }
     }
     try {
