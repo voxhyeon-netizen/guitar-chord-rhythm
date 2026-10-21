@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>소리 확인 — 기타 코드 리듬</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: 'Apple SD Gothic Neo', system-ui, sans-serif; background: #121a2e; color: #f4f7ff;
+    padding: 24px 16px 60px; line-height: 1.7; font-weight: 700;
+  }
+  .wrap { max-width: 520px; margin: 0 auto; }
+  h1 { font-size: 24px; text-align: center; margin-bottom: 6px; }
+  .sub { text-align: center; color: #9fb0d4; font-size: 14px; margin-bottom: 22px; }
+  .card { background: #223256; border: 3px solid #34477a; border-radius: 18px; padding: 18px; margin-bottom: 14px; }
+  .card h2 { font-size: 17px; margin-bottom: 4px; }
+  .card p { font-size: 13.5px; color: #9fb0d4; margin-bottom: 12px; }
+  button {
+    font: inherit; font-size: 17px; font-weight: 800; width: 100%; padding: 16px;
+    border: 3px solid rgba(0,0,0,.5); border-radius: 14px; cursor: pointer;
+    background: linear-gradient(180deg,#70a1ff,#1e90ff); color: #fff;
+    box-shadow: 0 4px 0 rgba(0,0,0,.35); touch-action: manipulation;
+  }
+  button:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(0,0,0,.35); }
+  .answer { display: flex; gap: 8px; margin-top: 10px; }
+  .answer button { font-size: 15px; padding: 11px; }
+  .yes { background: linear-gradient(180deg,#7bed9f,#2ed573); color: #10311d; }
+  .no  { background: linear-gradient(180deg,#ff9aa6,#ee5a6f); }
+  .answer button.off { opacity: .35; }
+  .state { font-size: 12.5px; color: #8ea4cc; margin-top: 10px; word-break: break-all; }
+  .result {
+    background: #10182c; border: 3px solid #ffa502; border-radius: 16px;
+    padding: 16px; font-size: 15px; margin-top: 18px; display: none;
+  }
+  .result.show { display: block; }
+  .result b { color: #ffa502; }
+  .big { font-size: 19px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🔈 소리 확인</h1>
+  <div class="sub">아래 3가지를 차례로 눌러보고<br>소리가 났는지 골라주세요.</div>
+
+  <div class="card">
+    <h2>① 삐 소리 (게임 효과음 방식)</h2>
+    <p>게임의 판정 소리와 같은 방식입니다.</p>
+    <button onclick="testBeep()">삐 소리 내보기</button>
+    <div class="answer">
+      <button class="yes" onclick="mark('beep',1,this)">들렸어요</button>
+      <button class="no"  onclick="mark('beep',0,this)">안 들려요</button>
+    </div>
+    <div class="state" id="s1"></div>
+  </div>
+
+  <div class="card">
+    <h2>② 노래 재생 (일반 방식)</h2>
+    <p>유튜브·음악 앱과 같은 방식으로 노래를 재생합니다.</p>
+    <button onclick="testTag()">노래 5초 들어보기</button>
+    <div class="answer">
+      <button class="yes" onclick="mark('tag',1,this)">들렸어요</button>
+      <button class="no"  onclick="mark('tag',0,this)">안 들려요</button>
+    </div>
+    <div class="state" id="s2"></div>
+  </div>
+
+  <div class="card">
+    <h2>③ 노래 재생 (지금 게임 방식)</h2>
+    <p>게임이 실제로 쓰는 방식입니다.</p>
+    <button onclick="testBuffer()">노래 5초 들어보기</button>
+    <div class="answer">
+      <button class="yes" onclick="mark('buf',1,this)">들렸어요</button>
+      <button class="no"  onclick="mark('buf',0,this)">안 들려요</button>
+    </div>
+    <div class="state" id="s3"></div>
+  </div>
+
+  <div class="result" id="result"></div>
+
+  <div class="card" style="margin-top:14px">
+    <h2>기기 정보</h2>
+    <div class="state" id="info"></div>
+  </div>
+</div>
+
+<audio id="tagAudio" playsinline preload="auto"></audio>
+
+<script>
+const AUDIO_URL = 'songs/smvhnbin4ia3g.m4a';
+const marks = {};
+let ctx = null;
+
+function getCtx() {
+  if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+  return ctx;
+}
+function unlock() {
+  try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
+  const c = getCtx();
+  if (c.state === 'suspended') c.resume();
+  const b = c.createBuffer(1, 1, 22050);
+  const s = c.createBufferSource();
+  s.buffer = b; s.connect(c.destination); s.start(0);
+}
+
+function testBeep() {
+  unlock();
+  const c = getCtx();
+  [523, 659, 784].forEach(function (f, i) {
+    const o = c.createOscillator(), g = c.createGain();
+    o.type = 'sine'; o.frequency.value = f;
+    g.gain.setValueAtTime(0.25, c.currentTime + i * 0.25);
+    g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + i * 0.25 + 0.24);
+    o.connect(g); g.connect(c.destination);
+    o.start(c.currentTime + i * 0.25); o.stop(c.currentTime + i * 0.25 + 0.26);
+  });
+  document.getElementById('s1').textContent = '상태: ' + c.state + ' · 샘플레이트 ' + c.sampleRate;
+}
+
+function testTag() {
+  const a = document.getElementById('tagAudio');
+  a.src = AUDIO_URL;
+  a.volume = 1;
+  a.currentTime = 0;
+  a.play().then(function () {
+    document.getElementById('s2').textContent = '재생 시작됨 (볼륨 ' + a.volume + ')';
+    setTimeout(function () { a.pause(); }, 5000);
+  }).catch(function (e) {
+    document.getElementById('s2').textContent = '재생 실패: ' + e.name + ' — ' + e.message;
+  });
+}
+
+function testBuffer() {
+  unlock();
+  const c = getCtx();
+  const el = document.getElementById('s3');
+  el.textContent = '불러오는 중…';
+  fetch(AUDIO_URL).then(function (r) { return r.arrayBuffer(); }).then(function (ab) {
+    c.decodeAudioData(ab, function (buf) {
+      const src = c.createBufferSource();
+      const g = c.createGain();
+      g.gain.value = 1;
+      src.buffer = buf; src.connect(g); g.connect(c.destination);
+      src.start(0, 0, 5);
+      el.textContent = '재생 시작됨 · 상태 ' + c.state + ' · 길이 ' + buf.duration.toFixed(1) + '초';
+    }, function (err) { el.textContent = '디코드 실패: ' + err; });
+  }).catch(function (e) { el.textContent = '불러오기 실패: ' + e.message; });
+}
+
+function mark(key, val, btn) {
+  marks[key] = val;
+  const row = btn.parentNode;
+  row.querySelectorAll('button').forEach(function (b) { b.classList.add('off'); });
+  btn.classList.remove('off');
+  render();
+}
+
+function render() {
+  if (marks.beep === undefined || marks.tag === undefined || marks.buf === undefined) return;
+  const r = document.getElementById('result');
+  let msg;
+  if (marks.beep && marks.tag && marks.buf) {
+    msg = '<b class="big">소리는 정상입니다.</b><br>게임 안에서만 안 들린다면 다른 원인이에요. 아래 문장을 알려주세요:<br><br>“<b>소리확인: 전부 들림</b>”';
+  } else if (!marks.beep && !marks.tag && !marks.buf) {
+    msg = '<b class="big">아무 소리도 안 납니다.</b><br>기기 음량·무음 모드, 블루투스 연결(에어팟·스피커)을 확인해 주세요.<br><br>“<b>소리확인: 전부 안 들림</b>”';
+  } else if (marks.tag && !marks.buf) {
+    msg = '<b class="big">원인을 찾았습니다!</b><br>일반 재생은 되는데 게임 방식만 안 됩니다. 게임 재생 방식을 바꾸면 해결됩니다.<br><br>“<b>소리확인: ②만 들림</b>”';
+  } else {
+    msg = '결과: 삐=' + (marks.beep ? 'O' : 'X') + ', 일반=' + (marks.tag ? 'O' : 'X') + ', 게임=' + (marks.buf ? 'O' : 'X') +
+          '<br><br>“<b>소리확인: 삐' + (marks.beep ? 'O' : 'X') + ' 일반' + (marks.tag ? 'O' : 'X') + ' 게임' + (marks.buf ? 'O' : 'X') + '</b>”';
+  }
+  r.innerHTML = msg;
+  r.classList.add('show');
+  r.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+(function info() {
+  const bits = [];
+  bits.push('브라우저: ' + (navigator.userAgent.indexOf('EdgiOS') >= 0 ? 'Edge' :
+            navigator.userAgent.indexOf('CriOS') >= 0 ? 'Chrome' : 'Safari 계열'));
+  const m = navigator.userAgent.match(/OS (\d+)[_.](\d+)/);
+  bits.push('iOS/iPadOS: ' + (m ? m[1] + '.' + m[2] : '알 수 없음'));
+  bits.push('홈화면 앱 모드: ' + (navigator.standalone ? '예' : '아니오'));
+  bits.push('audioSession 지원: ' + (navigator.audioSession ? '예' : '아니오'));
+  document.getElementById('info').innerHTML = bits.join('<br>');
+})();
+</script>
+</body>
+</html>
