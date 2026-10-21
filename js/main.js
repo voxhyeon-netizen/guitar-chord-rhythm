@@ -4,6 +4,8 @@
   let loadedAudioId = null;
   let audioPick = null;     // pending <input type=file> handler
   let lastPlayed = null;
+  let curScreen = 'home';
+  let remoteCheck = false;
   let toastTimer = 0;
 
   function $(id) { return document.getElementById(id); }
@@ -27,6 +29,7 @@
       offlineState: $('offlineState'),
       guide: $('btnGuide'),
       sound: $('btnSound'),
+      remote: $('btnRemote'),
     };
 
     GEditor.init({
@@ -50,6 +53,7 @@
     el.importChart.addEventListener('click', function () { el.fileChart.click(); });
     el.settings.addEventListener('click', openSettings);
     el.sound.addEventListener('click', soundTest);
+    el.remote.addEventListener('click', toggleRemoteCheck);
     el.fileAudio.addEventListener('change', onAudioChosen);
     el.fileChart.addEventListener('change', onChartChosen);
 
@@ -57,6 +61,9 @@
       if (lastPlayed) startPlay(lastPlayed);
     });
     $('resHome').addEventListener('click', function () { show('home'); renderList(); });
+
+    document.addEventListener('keydown', onRemoteCheckKey);
+    document.addEventListener('keydown', onResultKey);
 
     unlockAudioOnFirstTouch();
     setupOffline();
@@ -150,10 +157,45 @@
 
   /* ---------- screens ---------- */
   function show(name) {
+    curScreen = name;
     ['home', 'editor', 'play', 'result'].forEach(function (k) {
       el[k].classList.toggle('active', k === name);
     });
     if (name !== 'editor') GEditor.close();
+  }
+
+  /* 리모컨마다 보내는 신호가 다릅니다. 선생님이 직접 눌러보고 확인할 수 있게 합니다. */
+  function toggleRemoteCheck() {
+    remoteCheck = !remoteCheck;
+    el.remote.classList.toggle('btn-primary', remoteCheck);
+    toast(remoteCheck
+      ? '리모컨 버튼을 하나씩 눌러보세요. 무슨 신호인지 알려줍니다.'
+      : '리모컨 확인을 껐어요.');
+  }
+
+  function onRemoteCheckKey(e) {
+    if (!remoteCheck || curScreen !== 'home') return;
+    e.preventDefault();
+    const label = GPlay.remoteLabel(e.code);
+    toast(label
+      ? '이 버튼 = ' + label + '  (' + e.code + ')'
+      : '이 버튼은 쓰지 않는 신호예요 (' + e.code + ')');
+  }
+
+  /* 결과 화면도 리모컨으로 넘길 수 있게 — 맥 앞으로 돌아오지 않아도 다음 곡을 이어서 합니다.
+     다음(▶) = 다시 연주 · 이전(◀) = 목록으로 */
+  function onResultKey(e) {
+    if (curScreen !== 'result') return;
+    const next = ['PageDown', 'ArrowRight', 'ArrowDown', 'Enter', 'F5'];
+    const back = ['PageUp', 'ArrowLeft', 'ArrowUp'];
+    if (next.indexOf(e.code) >= 0) {
+      e.preventDefault();
+      if (lastPlayed) startPlay(lastPlayed);
+    } else if (back.indexOf(e.code) >= 0) {
+      e.preventDefault();
+      show('home');
+      renderList();
+    }
   }
 
   function toast(msg) {

@@ -18,6 +18,7 @@
   let footH = 0;
   let stats = null;
   let lastTarget = null;
+  let lastToggleMs = 0;
 
   /* lead-in: the clock starts at -leadSec so the first chord falls in from the top */
   let leadSec = 0;
@@ -444,18 +445,53 @@
   }
 
   /* ---------- controls ---------- */
+  /* PPT 리모컨은 키보드처럼 신호를 보냅니다. 버튼이 2~4개뿐이라 많이 쓰는 판정에 배정했습니다.
+     다음(▶) = 성공 · 이전(◀) = 실패 · 화면끄기(⬛) = 살짝 · 시작(F5) = 일시정지
+     제품마다 보내는 키가 달라서 한 동작에 여러 키를 받아 둡니다. */
+  const REMOTE = {
+    good: ['PageDown', 'ArrowRight', 'ArrowDown'],
+    miss: ['PageUp', 'ArrowLeft', 'ArrowUp'],
+    soso: ['KeyB', 'Period'],
+    pause: ['F5'],
+  };
+
+  function remoteKind(code) {
+    if (REMOTE.good.indexOf(code) >= 0) return 'good';
+    if (REMOTE.miss.indexOf(code) >= 0) return 'miss';
+    if (REMOTE.soso.indexOf(code) >= 0) return 'soso';
+    return '';
+  }
+
   function onKey(e) {
     if (!active) return;
+
+    /* 리모컨 '시작' 버튼이 F5 를 보내는 제품이 있습니다. 막지 않으면 수업 중에 새로고침됩니다. */
+    if (REMOTE.pause.indexOf(e.code) >= 0) { e.preventDefault(); togglePause(); return; }
     if (e.code === 'Space') { e.preventDefault(); togglePause(); return; }
     if (e.code === 'Escape') { e.preventDefault(); if (!paused) togglePause(); return; }
-    if (paused || finished || e.repeat) return;
+
+    /* 멈춰 있을 때는 리모컨 '다음'으로 다시 시작합니다 */
+    if (paused) {
+      if (remoteKind(e.code) === 'good') { e.preventDefault(); togglePause(); }
+      return;
+    }
+    if (finished || e.repeat) return;
+
     if (e.code === settings.keyGood) { e.preventDefault(); judge('good'); }
     else if (e.code === settings.keySoso) { e.preventDefault(); judge('soso'); }
     else if (e.code === settings.keyMiss) { e.preventDefault(); judge('miss'); }
+    else {
+      const kind = remoteKind(e.code);
+      if (kind) { e.preventDefault(); judge(kind); }
+    }
   }
 
   function togglePause() {
     if (!active || finished) return;
+    /* 리모컨은 한 번 눌러도 F5 와 Esc 가 잇따라 오는 제품이 있어 두 번 토글되는 것을 막습니다 */
+    const nowMs = performance.now();
+    if (nowMs - lastToggleMs < 400) return;
+    lastToggleMs = nowMs;
     paused = !paused;
     if (paused) {
       pausedLeadT = songTime();
@@ -515,5 +551,12 @@
     if (hooks.onFinish) hooks.onFinish(result, s);
   }
 
-  global.GPlay = { init: init, start: start, stop: stop };
+  /* 리모컨 확인용 — 이 키가 무슨 판정인지 알려줍니다 */
+  function remoteLabel(code) {
+    if (REMOTE.pause.indexOf(code) >= 0 || code === 'Space' || code === 'Escape') return '일시정지';
+    const kind = remoteKind(code);
+    return kind === 'good' ? '성공' : kind === 'soso' ? '살짝' : kind === 'miss' ? '실패' : '';
+  }
+
+  global.GPlay = { init: init, start: start, stop: stop, remoteLabel: remoteLabel };
 })(window);
