@@ -27,6 +27,19 @@
     fast:   { label: '빠름', scrollSec: 1.8, earlyWindow: 0.45, lateWindow: 0.35, autoMiss: true },
   };
 
+  /* 난이도별 채보 — 한 곡에 쉬움/보통/어려움 버전을 둡니다 */
+  const LEVELS = [
+    { id: 'easy',   label: '쉬움' },
+    { id: 'normal', label: '보통' },
+    { id: 'hard',   label: '어려움' },
+  ];
+  const LEVEL_IDS = LEVELS.map(function (l) { return l.id; });
+
+  function levelLabel(id) {
+    for (let i = 0; i < LEVELS.length; i++) if (LEVELS[i].id === id) return LEVELS[i].label;
+    return id;
+  }
+
   let songs = [];
   let writable = false;
 
@@ -75,17 +88,24 @@
     catch (e) { return {}; }
   }
 
-  function getBest(songId) {
-    const b = allBest()[songId];
+  /* 난이도마다 따로 기록합니다 (보통은 예전 기록을 그대로 씁니다) */
+  function bestKey(songId, level) {
+    return (!level || level === 'normal') ? songId : songId + ':' + level;
+  }
+
+  function getBest(songId, level) {
+    const b = allBest()[bestKey(songId, level)];
     return b && typeof b.score === 'number' ? b : null;
   }
 
   /* 점수가 올랐을 때만 덮어씁니다. 새 기록이면 true */
-  function saveBest(songId, res) {
-    const prev = getBest(songId);
+  function saveBest(songId, level, res) {
+    if (res === undefined) { res = level; level = 'normal'; }   // 예전 호출 방식도 받아줍니다
+    if (!res || !res.score) return false;              // 0점은 기록하지 않습니다
+    const prev = getBest(songId, level);
     if (prev && prev.score >= res.score) return false;
     const all = allBest();
-    all[songId] = {
+    all[bestKey(songId, level)] = {
       score: res.score,
       acc: res.acc,
       maxCombo: res.maxCombo,
@@ -106,8 +126,28 @@
       });
   }
 
-  function normalize(s) {
+  function normChart(c) {
+    c = c || {};
     return {
+      strum: c.strum || '4',
+      strumChanges: Array.isArray(c.strumChanges)
+        ? c.strumChanges.filter(function (x) { return x && typeof x.t === 'number' && x.strum; })
+            .map(function (x) { return { t: x.t, strum: x.strum }; })
+            .sort(function (a, b) { return a.t - b.t; })
+        : [],
+      notes: (Array.isArray(c.notes) ? c.notes : [])
+        .filter(function (n) { return n && typeof n.t === 'number' && n.chord; })
+        .map(function (n) {
+          const out = { t: n.t, chord: n.chord };
+          if (n.strum) out.strum = n.strum;
+          return out;
+        })
+        .sort(function (a, b) { return a.t - b.t; }),
+    };
+  }
+
+  function normalize(s) {
+    const out = {
       id: s.id,
       title: s.title || '제목 없음',
       audio: s.audio || '',
@@ -117,13 +157,102 @@
       snap: s.snap || '1',
       duration: s.duration || 0,
       updatedAt: s.updatedAt || 0,
-      strum: s.strum || '4',
-      strumChanges: Array.isArray(s.strumChanges)
-        ? s.strumChanges.filter(function (c) { return c && typeof c.t === 'number' && c.strum; })
-            .map(function (c) { return { t: c.t, strum: c.strum }; })
-            .sort(function (a, b) { return a.t - b.t; })
-        : [],
-      notes: Array.isArray(s.notes) ? s.notes.slice() : [],
+      charts: {},
+    };
+
+    const src = (s.charts && typeof s.charts === 'object') ? s.charts : null;
+    if (src) {
+      LEVEL_IDS.forEach(function (id) {
+        if (src[id] && Array.isArray(src[id].notes) && src[id].notes.length) out.charts[id] = normChart(src[id]);
+      });
+    }
+    /* 예전 곡(난이도 없이 만든 것)은 '보통' 으로 옮깁니다 */
+    if (!Object.keys(out.charts).length) {
+      out.charts.normal = normChart({ notes: s.notes, strum: s.strum, strumChanges: s.strumChanges });
+    }
+
+    /* 예전 버전 앱도 읽을 수 있도록 기본 채보를 바깥에도 남겨둡니다 */
+    const def = out.charts.normal || out.charts.hard || out.charts.easy;
+    out.notes = def.notes.slice();
+    out.strum = def.strum;
+    out.strumChanges = def.strumChanges.slice();
+    return out;
+  }
+
+  /* 어떤 난이도가 들어 있는지 (쉬움 → 보통 → 어려움 순서) */
+  function levelsOf(song) {
+    return LEVEL_IDS.filter(function (id) {
+      return song && song.charts && song.charts[id] && song.charts[id].notes.length;
+    });
+  }
+
+  /* 그 난이도로 연주할 수 있게 합친 곡 정보 */
+  function songAtLevel(song, level) {
+    const c = song.charts && song.charts[level];
+    if (!c) return song;
+    const out = {};
+    Object.keys(song).forEach(function (k) { if (k !== 'charts') out[k] = song[k]; });
+    out.notes = c.notes;
+    out.strum = c.strum;
+    out.strumChanges = c.strumChanges;
+    out.level = level;
+    return out;
+  }
+
+  /* 있는 채보에서 다른 난이도를 만들어 줍니다 */
+  const STRUM_ORDER = ['1', '2', '4', '8s', '8'];
+
+  /* 쉬움은 너무 촘촘한 주법만 눌러주고, 어려움은 8비트로 올립니다 */
+  function levelStrum(id, toLevel) {
+    if (id === 'w') return 'w';                       // 왈츠는 그대로
+    const i = STRUM_ORDER.indexOf(id === '8c' ? '8' : id);
+    if (toLevel === 'easy') return i > 2 ? '4' : (id || '4');
+    if (toLevel === 'hard') return i < 4 ? '8' : id;
+    return id || '4';
+  }
+
+  /* 가장 촘촘한 채보 — 다른 난이도는 항상 이걸 기준으로 만듭니다 */
+  function richestLevel(song) {
+    let best = null;
+    LEVEL_IDS.forEach(function (id) {
+      const c = song.charts && song.charts[id];
+      if (c && c.notes.length && (!best || c.notes.length > song.charts[best].notes.length)) best = id;
+    });
+    return best;
+  }
+
+  function deriveChart(song, fromLevel, toLevel) {
+    const src = song.charts && song.charts[fromLevel];
+    if (!src || !src.notes.length) return null;
+    const spb = 60 / (song.bpm || 90);
+    const bar = spb * (song.beatsPerBar || 4);
+    const off = song.offset || 0;
+    const bucket = toLevel === 'easy' ? bar : (toLevel === 'normal' ? bar / 2 : 0);
+
+    let notes = src.notes.slice();
+    if (bucket > 0) {
+      const kept = [];
+      let lastBucket = null;
+      notes.forEach(function (n) {
+        const b = Math.floor((n.t - off) / bucket + 1e-6);
+        if (b !== lastBucket) { kept.push(n); lastBucket = b; }
+      });
+      notes = kept;
+    }
+    /* 같은 코드가 연달아 나오면 하나로 */
+    const out = [];
+    notes.forEach(function (n) {
+      const prev = out[out.length - 1];
+      if (prev && prev.chord === n.chord && toLevel === 'easy') return;
+      out.push({ t: n.t, chord: n.chord });
+    });
+
+    return {
+      notes: out,
+      strum: levelStrum(src.strum, toLevel),
+      strumChanges: (src.strumChanges || []).map(function (c) {
+        return { t: c.t, strum: levelStrum(c.strum, toLevel) };
+      }),
     };
   }
 
@@ -204,6 +333,13 @@
     applyPreset: applyPreset,
     currentPreset: currentPreset,
     getBest: getBest,
+    LEVELS: LEVELS,
+    levelLabel: levelLabel,
+    levelsOf: levelsOf,
+    songAtLevel: songAtLevel,
+    deriveChart: deriveChart,
+    richestLevel: richestLevel,
+    normChart: normChart,
     saveBest: saveBest,
     loadLibrary: loadLibrary,
     list: list,

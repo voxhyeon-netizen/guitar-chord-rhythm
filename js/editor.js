@@ -9,6 +9,8 @@
   let el = {};
   let hooks = {};
   let song = null;
+  let chart = null;        // 지금 편집 중인 난이도의 채보
+  let level = 'normal';
   let peaks = null;
   let pxPerSec = 110;
   let brush = 'C';
@@ -47,6 +49,8 @@
       beats: $('edBeats'),
       snap: $('edSnap'),
       strum: $('edStrum'),
+      levels: $('edLevels'),
+      levelDel: $('edLevelDel'),
       strumHere: $('edStrumHere'),
       strumNote: $('edStrumNote'),
       metro: $('edMetro'),
@@ -64,23 +68,24 @@
     buildPalette();
     buildStrumList();
 
+    el.levelDel.addEventListener('click', deleteLevel);
     el.strum.addEventListener('change', function () {
-      song.strum = el.strum.value;          // 곡 전체 기본 주법
+      chart.strum = el.strum.value;          // 곡 전체 기본 주법
       dirty = true;
       renderNoteList();
-      toast('곡 기본 주법: ' + GStrum.name(song.strum));
+      toast('곡 기본 주법: ' + GStrum.name(chart.strum));
     });
     el.strumHere.addEventListener('click', function () {
       const t = snapTime(GAudio.now());
-      song.strumChanges = (song.strumChanges || []).filter(function (c) { return Math.abs(c.t - t) > 0.02; });
-      song.strumChanges.push({ t: t, strum: el.strum.value });
-      song.strumChanges.sort(function (a, b) { return a.t - b.t; });
+      chart.strumChanges = (chart.strumChanges || []).filter(function (c) { return Math.abs(c.t - t) > 0.02; });
+      chart.strumChanges.push({ t: t, strum: el.strum.value });
+      chart.strumChanges.sort(function (a, b) { return a.t - b.t; });
       dirty = true;
       renderNoteList();
       toast(fmt(t) + ' 부터 ' + GStrum.name(el.strum.value));
     });
     el.strumNote.addEventListener('click', function () {
-      const n = song.notes[selected];
+      const n = chart.notes[selected];
       if (!n) { toast('먼저 코드를 선택해 주세요.'); return; }
       n.strum = el.strum.value;
       dirty = true;
@@ -95,9 +100,9 @@
     el.save.addEventListener('click', save);
     el.exportBtn.addEventListener('click', exportJson);
     el.playtest.addEventListener('click', function () {
-      if (!song.notes.length) { toast('먼저 코드를 찍어주세요.'); return; }
+      if (!chart.notes.length) { toast('먼저 코드를 찍어주세요.'); return; }
       save();
-      if (hooks.onPlaytest) hooks.onPlaytest(song);
+      if (hooks.onPlaytest) hooks.onPlaytest(song, level);
     });
 
     el.replaceAudio.addEventListener('click', function () {
@@ -197,12 +202,20 @@
 
   /* 이 코드를 '얼마 동안' 치는지 — 다음 코드까지 (최대 4마디) */
   function noteSpanSec(i) {
-    const n = song.notes[i];
+    const n = chart.notes[i];
     if (!n) return secPerBeat();
-    const next = song.notes[i + 1];
+    const next = chart.notes[i + 1];
     const barLen = secPerBeat() * (song.beatsPerBar || 4);
     const d = next ? next.t - n.t : barLen;
     return Math.max(secPerBeat() * 0.5, Math.min(d, barLen * 4));
+  }
+
+  /* 주법 계산에 쓰는 합친 정보 */
+  function chartSong() {
+    return {
+      bpm: song.bpm, offset: song.offset, beatsPerBar: song.beatsPerBar,
+      strum: chart.strum, strumChanges: chart.strumChanges,
+    };
   }
 
   function clampNum(v, lo, hi, dflt) {
@@ -213,13 +226,19 @@
   function toast(msg) { if (global.GMain) GMain.toast(msg); }
 
   /* ---------- open / close ---------- */
-  function open(s) {
+  function open(s, lvl) {
     song = s;
+    if (!song.charts) song.charts = {};
+    level = lvl || (GStore.levelsOf(song)[0] || 'normal');
+    if (!song.charts[level]) {
+      song.charts[level] = GStore.normChart({ notes: song.notes, strum: song.strum, strumChanges: song.strumChanges });
+    }
+    chart = song.charts[level];
     if (!song.snap) song.snap = '1';
     if (!song.beatsPerBar) song.beatsPerBar = 4;
     if (!song.bpm) song.bpm = 90;
     if (song.offset == null) song.offset = 0;
-    if (!song.notes) song.notes = [];
+    if (!chart.notes) chart.notes = [];
     selected = -1;
     dirty = false;
     taps = [];
@@ -231,9 +250,10 @@
     el.offset.value = Number(song.offset).toFixed(2);
     el.beats.value = String(song.beatsPerBar);
     el.snap.value = song.snap;
-    if (!song.strum) song.strum = '4';
-    if (!song.strumChanges) song.strumChanges = [];
-    el.strum.value = song.strum;
+    if (!chart.strum) chart.strum = '4';
+    if (!chart.strumChanges) chart.strumChanges = [];
+    el.strum.value = chart.strum;
+    renderLevels();
     el.metro.checked = false;
     el.tap.textContent = '탭 템포 (T)';
     taps = [];
@@ -274,12 +294,71 @@
 
   function getSong() {
     song.title = el.title.value.trim() || song.title || '제목 없는 곡';
+    song.charts = song.charts || {};
+    song.charts[level] = chart;
+    /* 예전 버전 앱도 읽을 수 있게 기본 채보를 바깥에도 남깁니다 */
+    const def = song.charts.normal || song.charts.hard || song.charts.easy || chart;
+    song.notes = def.notes.slice();
+    song.strum = def.strum;
+    song.strumChanges = (def.strumChanges || []).slice();
     return song;
+  }
+
+  /* ---------- 난이도 ---------- */
+  function renderLevels() {
+    el.levels.innerHTML = '';
+    GStore.LEVELS.forEach(function (lv) {
+      const has = song.charts[lv.id] && song.charts[lv.id].notes.length;
+      const b = document.createElement('button');
+      b.className = 'btn btn-sm2 lvl-btn' + (lv.id === level ? ' on' : '') + (has ? '' : ' empty');
+      b.textContent = lv.label + (has ? ' (' + song.charts[lv.id].notes.length + ')' : ' —');
+      b.addEventListener('click', function () { switchLevel(lv.id); });
+      el.levels.appendChild(b);
+    });
+  }
+
+  function switchLevel(lvl) {
+    if (lvl === level) return;
+    if (!song.charts[lvl] || !song.charts[lvl].notes.length) {
+      const base = GStore.richestLevel(song) || level;
+      if (!confirm(GStore.levelLabel(lvl) + ' 채보가 없어요.\n' + GStore.levelLabel(base) + ' 채보에서 자동으로 만들까요?')) return;
+      const from = GStore.richestLevel(getSong()) || level;
+      const made = GStore.deriveChart(song, from, lvl);
+      if (!made) { toast('만들 채보가 없어요.'); return; }
+      song.charts[lvl] = GStore.normChart(made);
+      dirty = true;
+      toast(GStore.levelLabel(lvl) + ' 채보를 만들었어요 — 코드 ' + made.notes.length + '개');
+    }
+    level = lvl;
+    chart = song.charts[level];
+    selected = -1;
+    el.strum.value = chart.strum;
+    renderLevels();
+    renderNoteList();
+  }
+
+  function deleteLevel() {
+    const others = GStore.levelsOf(song).filter(function (l) { return l !== level; });
+    if (!others.length) { toast('하나 남은 채보는 지울 수 없어요.'); return; }
+    if (!confirm(GStore.levelLabel(level) + ' 채보를 지울까요?')) return;
+    delete song.charts[level];
+    dirty = true;
+    switchLevelForce(others[0]);
+    toast('지웠어요.');
+  }
+
+  function switchLevelForce(lvl) {
+    level = lvl;
+    chart = song.charts[level];
+    selected = -1;
+    el.strum.value = chart.strum;
+    renderLevels();
+    renderNoteList();
   }
 
   function save() {
     getSong();
-    song.notes.sort(function (a, b) { return a.t - b.t; });
+    chart.notes.sort(function (a, b) { return a.t - b.t; });
     if (!hooks.onSave) return;
     const done = hooks.onSave(song);
     if (done && done.then) done.then(function () { dirty = false; }).catch(function () {});
@@ -296,7 +375,7 @@
       offset: song.offset,
       beatsPerBar: song.beatsPerBar,
       duration: song.duration,
-      notes: song.notes.map(function (n) { return { t: Math.round(n.t * 1000) / 1000, chord: n.chord }; }),
+      notes: chart.notes.map(function (n) { return { t: Math.round(n.t * 1000) / 1000, chord: n.chord }; }),
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
@@ -403,7 +482,7 @@
 
     const end = start + count * step;
     if (el.progClear.checked) {
-      song.notes = song.notes.filter(function (n) { return n.t < start - 0.001 || n.t > end - 0.001; });
+      chart.notes = chart.notes.filter(function (n) { return n.t < start - 0.001 || n.t > end - 0.001; });
     }
 
     let placed = 0;
@@ -411,13 +490,13 @@
       const t = Math.round((start + i * step) * 1000) / 1000;
       if (dur && t > dur - 0.05) break;
       const chord = p.chords[i % p.chords.length];
-      const j = song.notes.findIndex(function (n) { return Math.abs(n.t - t) < 0.015; });
-      if (j >= 0) song.notes[j].chord = chord;
-      else song.notes.push({ t: t, chord: chord });
+      const j = chart.notes.findIndex(function (n) { return Math.abs(n.t - t) < 0.015; });
+      if (j >= 0) chart.notes[j].chord = chord;
+      else chart.notes.push({ t: t, chord: chord });
       placed++;
     }
 
-    song.notes.sort(function (a, b) { return a.t - b.t; });
+    chart.notes.sort(function (a, b) { return a.t - b.t; });
     selected = -1;
     dirty = true;
     renderNoteList();
@@ -428,14 +507,14 @@
   /* ---------- notes ---------- */
   function placeAt(t, snap) {
     const time = snap === false ? Math.max(0, t) : snapTime(t);
-    const i = song.notes.findIndex(function (n) { return Math.abs(n.t - time) < 0.015; });
+    const i = chart.notes.findIndex(function (n) { return Math.abs(n.t - time) < 0.015; });
     if (i >= 0) {
-      song.notes[i].chord = brush;
+      chart.notes[i].chord = brush;
       selected = i;
     } else {
-      song.notes.push({ t: time, chord: brush });
-      song.notes.sort(function (a, b) { return a.t - b.t; });
-      selected = song.notes.findIndex(function (n) { return n.t === time; });
+      chart.notes.push({ t: time, chord: brush });
+      chart.notes.sort(function (a, b) { return a.t - b.t; });
+      selected = chart.notes.findIndex(function (n) { return n.t === time; });
     }
     dirty = true;
     GAudio.sfx.click();
@@ -443,8 +522,8 @@
   }
 
   function removeNote(i) {
-    if (i < 0 || i >= song.notes.length) return;
-    song.notes.splice(i, 1);
+    if (i < 0 || i >= chart.notes.length) return;
+    chart.notes.splice(i, 1);
     if (selected === i) selected = -1;
     else if (selected > i) selected--;
     dirty = true;
@@ -460,8 +539,8 @@
     const y = e.clientY - r.top;
     if (y < NOTE_TOP - 4) return -1;
     const t = (e.clientX - r.left + el.timeline.scrollLeft) / pxPerSec;
-    for (let i = song.notes.length - 1; i >= 0; i--) {
-      const n = song.notes[i];
+    for (let i = chart.notes.length - 1; i >= 0; i--) {
+      const n = chart.notes[i];
       const head = Math.min(noteSpanSec(i), 44 / pxPerSec);
       if (t >= n.t && t <= n.t + head) return i;
     }
@@ -486,8 +565,8 @@
     const hit = hitNote(e);
     if (hit >= 0) {
       selected = hit;
-      dragging = { index: hit, grabDt: t - song.notes[hit].t };
-      setBrush(song.notes[hit].chord);
+      dragging = { index: hit, grabDt: t - chart.notes[hit].t };
+      setBrush(chart.notes[hit].chord);
       renderNoteList();
       return;
     }
@@ -506,7 +585,7 @@
     }
 
     if (dragging) {
-      const n = song.notes[dragging.index];
+      const n = chart.notes[dragging.index];
       if (!n) { dragging = null; return; }
       n.t = snapTime(Math.max(0, t - dragging.grabDt));
       dirty = true;
@@ -519,10 +598,10 @@
       if (el.metro.checked) restartMetroIfOn();
     }
     if (!dragging) return;
-    const moved = song.notes[dragging.index];
+    const moved = chart.notes[dragging.index];
     dragging = null;
-    song.notes.sort(function (a, b) { return a.t - b.t; });
-    selected = song.notes.indexOf(moved);
+    chart.notes.sort(function (a, b) { return a.t - b.t; });
+    selected = chart.notes.indexOf(moved);
     renderNoteList();
   }
 
@@ -710,7 +789,7 @@
   function renderNoteList() {
     el.notes.innerHTML = '';
     const frag = document.createDocumentFragment();
-    song.notes.forEach(function (n, i) {
+    chart.notes.forEach(function (n, i) {
       const col = GChords.colorOf(n.chord);
       const chip = document.createElement('div');
       chip.className = 'note-chip' + (i === selected ? ' sel' : '');
@@ -846,17 +925,17 @@
     }
 
     /* notes */
-    for (let i = 0; i < song.notes.length; i++) {
-      const n = song.notes[i];
+    for (let i = 0; i < chart.notes.length; i++) {
+      const n = chart.notes[i];
       const span = noteSpanSec(i);
       const wpx = Math.max(26, span * pxPerSec);
       if (n.t > t1 + 1 || n.t * pxPerSec + wpx < scroll - 1) continue;
       drawNoteBox(ctx, n.t * pxPerSec - scroll, n.chord, i === selected, wpx,
-        global.GStrum ? GStrum.forNote(song, n) : null, n.t, span, !!n.strum);
+        global.GStrum ? GStrum.forNote(chartSong(), n) : null, n.t, span, !!n.strum);
     }
 
     /* 주법이 바뀌는 지점 */
-    (song.strumChanges || []).forEach(function (c) {
+    (chart.strumChanges || []).forEach(function (c) {
       if (c.t < t0 - 1 || c.t > t1 + 1) return;
       const x = c.t * pxPerSec - scroll;
       ctx.strokeStyle = '#ffd97a';
@@ -914,7 +993,7 @@
 
     /* 치는 순간 화살표 */
     if (patId && global.GStrum && span) {
-      const marks = GStrum.times(song, patId, noteT, noteT + span);
+      const marks = GStrum.times(chartSong(), patId, noteT, noteT + span);
       ctx.font = '900 13px Nunito, sans-serif';
       ctx.textAlign = 'center';
       for (let i = 0; i < marks.length; i++) {

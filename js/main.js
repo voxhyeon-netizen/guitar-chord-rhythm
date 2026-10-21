@@ -35,7 +35,7 @@
     GEditor.init({
       onBack: function () { show('home'); renderList(); },
       onSave: saveSongFromEditor,
-      onPlaytest: function (song) { startPlay(song); },
+      onPlaytest: function (song, lvl) { startPlay(song, lvl); },
       onReplaceAudio: function (song) {
         pickAudioFor(song, function () {
           GEditor.refreshAudio();
@@ -233,7 +233,7 @@
     }
 
     songs.forEach(function (song) {
-      const best = GStore.getBest(song.id);
+      const levels = GStore.levelsOf(song);
       const chords = [];
       (song.notes || []).forEach(function (n) { if (chords.indexOf(n.chord) < 0) chords.push(n.chord); });
 
@@ -244,11 +244,9 @@
       main.className = 'sc-main';
       main.innerHTML = '<h3>' + escapeHtml(song.title) + '</h3>' +
         '<div class="sc-meta">' +
-        '<span>코드 ' + (song.notes || []).length + '개</span>' +
         '<span>' + fmtDur(song.duration || 0) + '</span>' +
         '<span>BPM ' + (song.bpm || '-') + '</span>' +
         (song.audio ? '' : '<span class="warn">mp3 없음</span>') +
-        (best ? '<span class="best">★ 최고 ' + best.score.toLocaleString() + '점</span>' : '') +
         '</div>';
       const chipRow = document.createElement('div');
       chipRow.className = 'sc-chords';
@@ -261,9 +259,26 @@
       });
       main.appendChild(chipRow);
 
+      /* 난이도마다 한 줄씩 — 코드 수와 주법, 최고 기록을 같이 보여줍니다 */
+      const levelBox = document.createElement('div');
+      levelBox.className = 'sc-levels';
+      levels.forEach(function (lv) {
+        const chart = song.charts[lv];
+        const best = GStore.getBest(song.id, lv);
+        const row = document.createElement('button');
+        row.className = 'level-row lv-' + lv;
+        row.innerHTML =
+          '<b class="lv-name">▶ ' + GStore.levelLabel(lv) + '</b>' +
+          '<span class="lv-meta">코드 ' + chart.notes.length + '개 · ' +
+            (global.GStrum ? GStrum.name(chart.strum) : '') + '</span>' +
+          (best ? '<span class="lv-best">★ ' + best.score.toLocaleString() + '</span>' : '');
+        row.addEventListener('click', function () { startPlay(song, lv); });
+        levelBox.appendChild(row);
+      });
+      main.appendChild(levelBox);
+
       const btns = document.createElement('div');
       btns.className = 'sc-btns';
-      btns.appendChild(mkBtn('▶ 연주', 'btn btn-primary', function () { startPlay(song); }));
       if (rw) {
         btns.appendChild(mkBtn('채보 수정', 'btn btn-secondary', function () { openEditor(song); }));
         btns.appendChild(mkBtn('삭제', 'btn btn-back btn-sm2', function () {
@@ -377,7 +392,9 @@
     });
   }
 
-  function startPlay(song) {
+  function startPlay(song, level) {
+    const lv = level || (GStore.levelsOf(song)[0] || 'normal');
+    song = GStore.songAtLevel(song, lv);
     if (!(song.notes || []).length) {
       toast('먼저 채보에서 코드를 찍어주세요.');
       if (GStore.canWrite()) openEditor(song);
@@ -442,7 +459,8 @@
     const stars = pct >= 95 ? 3 : pct >= 80 ? 2 : pct >= 60 ? 1 : 0;
 
     $('resStars').textContent = '★★★☆☆☆'.slice(3 - stars, 6 - stars);
-    $('resTitle').textContent = (song.title || '연주') + ' 끝!';
+    $('resTitle').textContent = (song.title || '연주') +
+      (song.level && song.level !== 'normal' ? ' · ' + GStore.levelLabel(song.level) : '') + ' 끝!';
     $('resScore').textContent = res.score.toLocaleString();
     $('resGood').textContent = res.good;
     $('resSoso').textContent = res.soso;
@@ -456,8 +474,9 @@
       '천천히 연습해봐요. 속도를 0.75배로 낮춰보세요.';
 
     /* 지난 기록과 견줘 보여줍니다 — 아이들이 '지난주보다 올랐다'를 느끼는 자리 */
-    const prev = GStore.getBest(song.id);
-    const isNew = GStore.saveBest(song.id, { score: res.score, acc: pct, maxCombo: res.maxCombo });
+    const lv = song.level || 'normal';
+    const prev = GStore.getBest(song.id, lv);
+    const isNew = GStore.saveBest(song.id, lv, { score: res.score, acc: pct, maxCombo: res.maxCombo });
     const bestBox = $('resBest');
     if (isNew && prev) {
       bestBox.innerHTML = '🎉 <b>최고 기록 경신!</b> 지난 기록 ' + prev.score.toLocaleString() + '점';
