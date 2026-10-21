@@ -446,9 +446,11 @@
     }
     lastPlayed = song;
     GAudio.unlock();          // 아이패드: 누르는 그 순간에 잠금을 풀어야 소리가 납니다
-    toast('곡을 준비하고 있어요…');
+    /* 금방 열리면 안내가 깜빡이기만 해서, 오래 걸릴 때만 보여줍니다 */
+    const slow = setTimeout(function () { toast('곡을 준비하고 있어요…'); }, 400);
     ensureAudio(song)
       .then(function () {
+        clearTimeout(slow);
         el.toast.classList.remove('show');
         show('play');
         /* requestAnimationFrame 으로 미루면 브라우저가 화면 갱신을 멈춘 사이
@@ -456,6 +458,7 @@
         GPlay.start(song, GStore.settingsForLevel(lv));
       })
       .catch(function (err) {
+        clearTimeout(slow);
         toast('mp3를 불러오지 못했어요 (' + (err && err.message ? err.message : 'error') + ')');
       });
   }
