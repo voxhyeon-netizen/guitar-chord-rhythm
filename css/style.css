@@ -148,6 +148,16 @@ a.btn { text-decoration: none; display: inline-block; }
 .ed-brush-label { font-size: 11px; color: var(--muted); }
 .ed-brush-chord { background: #fff; border-radius: 10px; padding: 2px; min-height: 40px; display: flex; align-items: center; }
 .ed-brush .btn { width: 100%; font-size: 12px; padding: 8px; }
+/* 코드 진행 채우기 줄 */
+.ed-fill {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  background: #1b2847; border: 2px solid var(--accent); border-radius: 12px; padding: 8px 10px;
+}
+.ed-fill-title { font-size: 12px; font-weight: 900; color: var(--accent); }
+.ed-prog { width: 190px; font-family: inherit; }
+.ed-fill-note { font-size: 11px; color: var(--muted); }
+.ed-field input:disabled { opacity: .4; }
+
 .ed-hint { font-size: 11.5px; color: var(--muted); line-height: 1.6; }
 .ed-hint b { color: var(--accent); }
 .ed-notes { display: flex; gap: 5px; flex-wrap: wrap; overflow-y: auto; max-height: 88px; padding-bottom: 4px; }

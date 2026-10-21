@@ -117,6 +117,20 @@
       layout();
       el.timeline.scrollLeft = Math.max(0, center * pxPerSec - el.timeline.clientWidth / 2);
     });
+    el.prog = $('edProg');
+    el.progUnit = $('edProgUnit');
+    el.progTimes = $('edProgTimes');
+    el.progToEnd = $('edProgToEnd');
+    el.progClear = $('edProgClear');
+    el.progFill = $('edProgFill');
+    el.progFill.addEventListener('click', fillProgression);
+    el.prog.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); fillProgression(); }
+    });
+    el.progToEnd.addEventListener('change', function () {
+      el.progTimes.disabled = el.progToEnd.checked;
+    });
+
     el.tap.addEventListener('click', tapTempo);
     el.place.addEventListener('click', function () { placeAt(GAudio.now(), true); });
 
@@ -276,6 +290,77 @@
     const unit = secPerBeat() * beats;
     const n = Math.round((t - song.offset) / unit);
     return Math.max(0, song.offset + n * unit);
+  }
+
+  /* ---------- 코드 진행 한 번에 채우기 ----------
+     동요는 같은 진행이 계속 반복됩니다. 하나씩 찍는 대신 'C G Am F' 를 적고
+     한 코드당 길이와 반복 횟수만 정하면 한 번에 깔립니다. */
+  function parseProgression(text) {
+    const known = GChords.names();
+    const chords = String(text || '').split(/[\s,|]+/).filter(Boolean);
+    const unknown = chords.filter(function (c) { return known.indexOf(c) < 0; });
+    return { chords: chords, unknown: unknown };
+  }
+
+  /* 한 코드가 차지하는 시간 */
+  function fillStepSec() {
+    const u = el.progUnit.value;
+    const beats = u === '2bar' ? song.beatsPerBar * 2
+      : u === 'bar' ? song.beatsPerBar
+      : u === 'half' ? song.beatsPerBar / 2
+      : 1;
+    return secPerBeat() * beats;
+  }
+
+  function fillProgression() {
+    if (!song) return;
+    const p = parseProgression(el.prog.value);
+    if (!p.chords.length) { toast('코드 진행을 적어주세요. 예: C G Am F'); return; }
+    if (p.unknown.length) {
+      toast('팔레트에 없는 코드예요: ' + p.unknown.join(', '));
+      return;
+    }
+
+    const step = fillStepSec();
+    if (!(step > 0)) { toast('BPM 과 박자를 먼저 맞춰주세요.'); return; }
+
+    /* 멈춰 있는 지점부터. 맨 앞이면 첫 박부터 */
+    const nowT = GAudio.hasAudio() ? GAudio.now() : 0;
+    const start = snapTime(nowT > 0.05 ? nowT : song.offset);
+    const dur = song.duration || GAudio.duration() || 0;
+
+    let count;
+    if (el.progToEnd.checked) {
+      if (!dur) { toast('음원 길이를 몰라서 끝까지 채울 수 없어요.'); return; }
+      count = Math.floor((dur - start) / step);
+      if (count < 1) { toast('여기서부터는 채울 자리가 없어요.'); return; }
+    } else {
+      const times = clampNum(parseInt(el.progTimes.value, 10), 1, 200, 1);
+      count = p.chords.length * times;
+    }
+
+    const end = start + count * step;
+    if (el.progClear.checked) {
+      song.notes = song.notes.filter(function (n) { return n.t < start - 0.001 || n.t > end - 0.001; });
+    }
+
+    let placed = 0;
+    for (let i = 0; i < count; i++) {
+      const t = Math.round((start + i * step) * 1000) / 1000;
+      if (dur && t > dur - 0.05) break;
+      const chord = p.chords[i % p.chords.length];
+      const j = song.notes.findIndex(function (n) { return Math.abs(n.t - t) < 0.015; });
+      if (j >= 0) song.notes[j].chord = chord;
+      else song.notes.push({ t: t, chord: chord });
+      placed++;
+    }
+
+    song.notes.sort(function (a, b) { return a.t - b.t; });
+    selected = -1;
+    dirty = true;
+    renderNoteList();
+    GAudio.sfx.click();
+    toast(placed ? placed + '개를 채웠어요 (' + start.toFixed(2) + '초부터)' : '채울 자리가 없어요.');
   }
 
   /* ---------- notes ---------- */

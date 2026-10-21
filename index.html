@@ -11,8 +11,8 @@
   <title>기타 코드 리듬 — 수업용</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=8" />
-  <script src="js/access-config.js?v=8"></script>
+  <link rel="stylesheet" href="css/style.css?v=9" />
+  <script src="js/access-config.js?v=9"></script>
   <script>
     /* 잠금이 필요한 주소면 화면을 먼저 가려 깜빡임을 막습니다 */
     (function () {
@@ -153,6 +153,28 @@
       <div class="ed-brush-chord" id="edBrush"></div>
       <button class="btn btn-primary" id="edPlace">여기에 찍기 (Enter)</button>
     </div>
+  </div>
+
+  <div class="ed-fill">
+    <span class="ed-fill-title">코드 진행 채우기</span>
+    <label class="ed-field">진행
+      <input id="edProg" class="ed-prog" placeholder="C G Am F" spellcheck="false" />
+    </label>
+    <label class="ed-field">한 코드당
+      <select id="edProgUnit">
+        <option value="2bar">2마디</option>
+        <option value="bar" selected>1마디</option>
+        <option value="half">반마디</option>
+        <option value="beat">1박</option>
+      </select>
+    </label>
+    <label class="ed-field">반복
+      <input type="number" id="edProgTimes" min="1" max="200" value="4" /> 번
+    </label>
+    <label class="ed-check"><input type="checkbox" id="edProgToEnd" /> 곡 끝까지</label>
+    <label class="ed-check"><input type="checkbox" id="edProgClear" /> 그 자리 비우고</label>
+    <button class="btn btn-primary btn-sm2" id="edProgFill">채우기</button>
+    <span class="ed-fill-note">지금 멈춰 있는 위치부터 채웁니다</span>
   </div>
 
   <p class="ed-hint">
@@ -305,12 +327,12 @@
 <div class="toast" id="toast"></div>
 
 <!-- 파일을 고친 뒤 아이패드에 반영이 안 되면 아래 v= 숫자를 올리세요 -->
-<script src="js/gate.js?v=8"></script>
-<script src="js/chords.js?v=8"></script>
-<script src="js/storage.js?v=8"></script>
-<script src="js/audio.js?v=8"></script>
-<script src="js/editor.js?v=8"></script>
-<script src="js/play.js?v=8"></script>
-<script src="js/main.js?v=8"></script>
+<script src="js/gate.js?v=9"></script>
+<script src="js/chords.js?v=9"></script>
+<script src="js/storage.js?v=9"></script>
+<script src="js/audio.js?v=9"></script>
+<script src="js/editor.js?v=9"></script>
+<script src="js/play.js?v=9"></script>
+<script src="js/main.js?v=9"></script>
 </body>
 </html>
