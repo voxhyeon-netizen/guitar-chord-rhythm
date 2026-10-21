@@ -17,6 +17,7 @@
   let judgeY = 0;
   let footH = 0;
   let headH = NOTE_H;      // 막대 머리 높이 — 화면 크기에 맞춰 정해집니다
+  let GAP = 14;
   let stats = null;
   let lastTarget = null;
   let lastToggleMs = 0;
@@ -48,6 +49,7 @@
       feet: $('laneFeet'),
       popup: $('judgePopup'),
       fx: $('fxLayer'),
+      intro: $('introHint'),
       splash: $('comboSplash'),
       comboFloat: $('comboFloat'),
       nowChord: $('nowChord'),
@@ -124,6 +126,9 @@
       let d = next ? next.t - n.t : barLen;
       n.dur = Math.max(spbNow * 0.5, Math.min(d, barLen * 4));
       n.pat = global.GStrum ? GStrum.forNote(song, n) : null;
+      n.marks = (n.pat && global.GStrum)
+        ? GStrum.times(song, n.pat, n.t, n.t + n.dur).map(function (m) { return m.t; })
+        : [];
     });
 
     stats = { good: 0, soso: 0, miss: 0, skip: 0, score: 0, combo: 0, maxCombo: 0 };
@@ -131,6 +136,10 @@
     el.songName.textContent = song.title || '';
     el.layer.innerHTML = '';
     el.fx.innerHTML = '';
+    el.intro.classList.add('hidden');
+    lastActiveLane = -1;
+    lastPanelChord = null;
+    lastFrameT = -1;
     for (let i = 1; i <= TIERS.length; i++) el.field.classList.remove('tier' + i);
     el.field.classList.remove('shake');
     el.splash.classList.remove('show');
@@ -207,13 +216,16 @@
   function measure() {
     const h = el.field.clientHeight;
     headH = Math.max(56, Math.min(110, Math.round(h * 0.105)));
+    GAP = 14;                     // 판정선과 코드 그림 사이 여백 — 선이 가려지면 안 됩니다
     if (!h || !el.field.clientWidth) {         // 화면이 아직 잡히지 않음 — 곧 다시 잽니다
       setTimeout(function () { if (active) measure(); }, 60);
     }
     footH = (settings.showDiagram && (GChords.shape(lanes[0]) || lanes.length === 1)) ? 122 : 46;
-    judgeY = Math.max(140, h - footH);
+    judgeY = Math.max(140, h - footH - GAP);
     el.line.style.top = judgeY + 'px';
     el.feet.style.height = footH + 'px';
+    /* 판정선 바로 아래에서 막대가 잘려 나갑니다 — 지나간 부분이 코드 그림을 덮지 않게 */
+    el.layer.style.height = (judgeY + 6) + 'px';
     const laneW = el.field.clientWidth / Math.max(1, lanes.length);
     notes.forEach(function (n) {
       if (n.elem) {
@@ -265,13 +277,12 @@
       if (n.state === 'wait' && dt < -settings.lateWindow) {
         if (settings.judgeMode === 'autoGood') applyJudge(n, 'good', true);
         else if (settings.autoMiss) applyJudge(n, 'miss', true);
-        else { n.state = 'skip'; stats.skip++; fadeOut(n); }
+        else { n.state = 'skip'; stats.skip++; markJudged(n, 'soso'); }
       }
 
-      if (n.state === 'done' || n.state === 'skip') continue;
-
       const dur = n.dur || 0.5;
-      if (dt < scrollSec + 0.3 && dt > -(dur + 1.2)) {
+      /* 판정했어도 막대는 끝까지 내려갑니다 — 아직 치는 중이니까요 */
+      if (dt < scrollSec + 0.3 && dt > -(dur + 0.7)) {
         if (!n.elem) createNote(n, laneW);
         /* 막대의 아래끝이 판정선에 닿는 순간이 '치기 시작' 입니다 */
         const bottom = judgeY * (1 - dt / scrollSec);
@@ -281,7 +292,10 @@
       }
     }
 
+    introHint(t);
+    strumPulse(t);
     updateTarget(t);
+    updateActiveLane(t);
     const dur = GAudio.duration();
     el.progress.style.width = (dur ? Math.max(0, Math.min(1, t / dur)) * 100 : 0) + '%';
 
@@ -307,6 +321,7 @@
     /* 치는 순간마다 화살표 — 판정선을 지나갈 때 치면 됩니다 */
     if (n.pat && global.GStrum) {
       const marks = GStrum.times(song, n.pat, n.t, n.t + dur);
+      n.marks = marks.map(function (m) { return m.t; });
       for (let i = 0; i < marks.length; i++) {
         const off = (marks[i].t - n.t) / dur * h;
         if (off < headH * 0.8) continue;              // 머리와 겹치면 생략
@@ -328,13 +343,11 @@
     n.elem = null;
   }
 
-  function fadeOut(n) {
+  /* 판정 결과를 막대에 표시만 합니다. 지우지 않고 끝까지 흘려보냅니다. */
+  function markJudged(n, kind) {
     if (!n.elem) return;
-    const e = n.elem;
-    n.elem = null;
-    e.classList.remove('target');
-    e.classList.add('done');
-    setTimeout(function () { if (e.parentNode) e.parentNode.removeChild(e); }, 220);
+    n.elem.classList.remove('target', 'judged-good', 'judged-soso', 'judged-miss');
+    n.elem.classList.add('judged', 'judged-' + kind);
   }
 
   /* ---------- target ---------- */
@@ -352,15 +365,90 @@
     return best;
   }
 
+  /* 전주 동안 빈 화면을 보고 있지 않도록 — 첫 코드까지 몇 초 남았는지 알려줍니다 */
+  function introHint(t) {
+    const first = notes[0];
+    const left = first ? first.t - t : 0;
+    const show = !!first && left > settings.scrollSec + 0.2;
+    if (!show) {
+      if (!el.intro.classList.contains('hidden')) el.intro.classList.add('hidden');
+      return;
+    }
+    const sec = Math.max(1, Math.ceil(left - settings.scrollSec));
+    el.intro.classList.remove('hidden');
+    el.intro.innerHTML =
+      '<div class="ih-top">🎵 전주 — 잘 듣고 준비하세요</div>' +
+      '<div class="ih-count">' + sec + '</div>' +
+      '<div class="ih-chord">첫 코드 <b>' + first.chord + '</b></div>' +
+      ((settings.showDiagram && GChords.shape(first.chord))
+        ? '<div class="ih-dia">' + GChords.diagramSvg(first.chord, { width: 110, showName: false }) + '</div>' : '');
+  }
+
+  /* 화살표가 판정선을 지나는 순간 선이 번쩍입니다 — 리듬을 눈으로 따라갈 수 있게 */
+  let lastFrameT = -1;
+  function strumPulse(t) {
+    const prev = lastFrameT;
+    lastFrameT = t;
+    if (prev < 0 || t - prev > 0.5 || t < prev) return;   // 건너뛰거나 되감았을 때는 건너뜀
+    for (let i = 0; i < notes.length; i++) {
+      const n = notes[i];
+      if (n.t > t + 0.05) break;
+      if (!n.marks || t > n.t + (n.dur || 0.5) + 0.05) continue;
+      for (let k = 0; k < n.marks.length; k++) {
+        const m = n.marks[k];
+        if (m > prev && m <= t) { pulseLine(n.lane); return; }
+      }
+    }
+  }
+
+  function pulseLine(lane) {
+    el.line.classList.remove('pulse');
+    void el.line.offsetWidth;
+    el.line.classList.add('pulse');
+    const foot = el.feet.children[lane];
+    if (foot) {
+      foot.classList.remove('beat');
+      void foot.offsetWidth;
+      foot.classList.add('beat');
+    }
+  }
+
+  /* 지금 치는 코드의 그림을 밝게 — 어느 줄을 봐야 하는지 한눈에 */
+  let lastActiveLane = -1;
+  function updateActiveLane(t) {
+    const n = spanningNote(t) || findTarget(t);
+    const lane = n ? n.lane : -1;
+    if (lane === lastActiveLane) return;
+    lastActiveLane = lane;
+    for (let i = 0; i < el.feet.children.length; i++) {
+      el.feet.children[i].classList.toggle('active', i === lane);
+    }
+  }
+
+  let lastPanelChord = null;
   function updateTarget(t) {
     const target = findTarget(t);
+    const showing = target || spanningNote(t) || nextWaiting(t);
+    const chord = showing ? showing.chord : null;
+    if (chord !== lastPanelChord) {
+      lastPanelChord = chord;
+      setChordPanel(chord, afterOf(showing));
+    }
     if (target !== lastTarget) {
       if (lastTarget && lastTarget.elem) lastTarget.elem.classList.remove('target');
       lastTarget = target;
-      const upcoming = target || nextWaiting(t);
-      setChordPanel(upcoming ? upcoming.chord : null, afterOf(upcoming));
     }
     if (target && target.elem) target.elem.classList.add('target');
+  }
+
+  /* 지금 판정선을 지나고 있는 막대 (판정이 끝났어도 아직 치는 중) */
+  function spanningNote(t) {
+    for (let i = 0; i < notes.length; i++) {
+      const n = notes[i];
+      if (n.t > t + 0.05) break;
+      if (t < n.t + (n.dur || 0.5)) return n;
+    }
+    return null;
   }
 
   function nextWaiting(t) {
@@ -405,23 +493,63 @@
   function judge(kind) {
     if (!active || paused || finished) return;
     pressFx(kind);
-    const target = findTarget(songTime());
-    if (!target) { GAudio.sfx.click(); return; }
-    applyJudge(target, kind, false);
+    const t = songTime();
+    const target = findTarget(t);
+    if (target) { applyJudge(target, kind, false); return; }
+
+    /* 기본 성공 방식에서는 막대가 지나가는 동안 언제든 바꿀 수 있습니다
+       — 두 번째 스트로크에서 틀려도 그때 누르면 됩니다 */
+    if (settings.judgeMode === 'autoGood' && kind !== 'good') {
+      const cur = spanningNote(t);
+      if (cur && cur.state === 'done' && cur.auto && cur.kind === 'good') {
+        revise(cur, kind);
+        return;
+      }
+    }
+    GAudio.sfx.click();
+  }
+
+  /* 이미 성공으로 넘어간 코드를 실패/살짝으로 고칩니다 */
+  function revise(n, kind) {
+    stats.good--;
+    stats.score -= n.points || 0;
+    n.kind = kind;
+    n.points = 0;
+    if (kind === 'soso') {
+      stats.soso++;
+      n.points = 50;
+      stats.score += 50;
+      GAudio.sfx.soso();
+    } else {
+      stats.miss++;
+      stats.combo = 0;
+      GAudio.sfx.miss();
+    }
+    if (stats.score < 0) stats.score = 0;
+    markJudged(n, kind);
+    flashLane(n.lane, kind);
+    popup(kind, n.lane);
+    comboFx(kind, n.lane);
+    updateHud();
   }
 
   function applyJudge(n, kind, auto) {
     n.state = 'done';
+    n.kind = kind;
+    n.auto = !!auto;
+    n.points = 0;
     if (kind === 'good') {
       stats.good++;
       stats.combo++;
-      stats.score += Math.round(100 * (1 + Math.min(stats.combo, 50) * 0.02));
+      n.points = Math.round(100 * (1 + Math.min(stats.combo, 50) * 0.02));
+      stats.score += n.points;
       GAudio.sfx.goodStep((stats.combo - 1) % 8);
       if (n.elem) n.elem.classList.add('hit-good');
     } else if (kind === 'soso') {
       stats.soso++;
       stats.combo++;
-      stats.score += 50;
+      n.points = 50;
+      stats.score += n.points;
       GAudio.sfx.soso();
     } else {
       stats.miss++;
@@ -433,7 +561,7 @@
     flashLane(n.lane, kind);
     popup(kind, n.lane);
     comboFx(kind, n.lane);
-    fadeOut(n);
+    markJudged(n, kind);
     if (lastTarget === n) lastTarget = null;
     updateHud();
   }

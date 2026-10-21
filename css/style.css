@@ -192,7 +192,8 @@ a.btn { text-decoration: none; display: inline-block; }
 }
 .lane-col.flash::after { opacity: .5; transition: opacity .05s; }
 
-.notes-layer { position: absolute; inset: 0; }
+/* 막대는 판정선 아래에서 잘립니다 (높이는 화면에 맞춰 계산) */
+.notes-layer { position: absolute; left: 0; right: 0; top: 0; overflow: hidden; z-index: 1; }
 .note {
   position: absolute; left: 0; width: 100%;
   display: flex; align-items: center; justify-content: center;
@@ -518,3 +519,59 @@ html.gate-on body > .toast { display: none !important; }
 .judge-bar.auto-good .jbtn-good { flex: 1; opacity: .9; }
 .judge-bar.auto-good .jbtn-soso { flex: .8; opacity: .9; }
 .judge-mode-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* 판정이 끝난 막대 — 사라지지 않고 끝까지 내려갑니다.
+   아직 쳐야 할 화살표가 남아 있으니 흐려지지 않게 둡니다. 머리 색으로만 결과를 알려줍니다. */
+.note.judged .note-head { box-shadow: 0 3px 0 rgba(0,0,0,.35), inset 0 -4px 0 rgba(0,0,0,.1); }
+.note.judged-good .note-head { background: #ffffff !important; color: #16233c; }
+.note.judged-soso .note-head { background: linear-gradient(180deg,#9fd3ff,#70a1ff) !important; color: #0c2444; }
+.note.judged-miss .note-head { background: linear-gradient(180deg,#b9c2d2,#8d99a9) !important; color: #2b3444; }
+.note.judged-miss .note-body { opacity: .2; }
+.note.judged-miss .strum { opacity: .45; }
+
+/* ===== 판정선을 확실히 보이게 ===== */
+#screen-play .judge-line { z-index: 4; }
+#screen-play .judge-line::before {
+  content: ''; position: absolute; left: 0; right: 0; top: -3px; height: 3px;
+  background: linear-gradient(90deg, rgba(255,255,255,0), #fff 15%, #fff 85%, rgba(255,255,255,0));
+  box-shadow: 0 0 14px rgba(255,255,255,.85);
+}
+#screen-play .judge-line-label {
+  top: -26px; right: 10px; font-size: 11px; font-weight: 900; color: #16233c;
+  background: rgba(255,255,255,.9); border-radius: 999px; padding: 2px 10px;
+}
+.lane-feet { z-index: 2; }
+
+/* 지금 치는 코드의 그림을 밝게 */
+.lane-foot { transition: transform .15s, filter .15s; filter: brightness(.6) saturate(.7); }
+.lane-foot.active { filter: none; transform: translateY(-4px) scale(1.04); }
+.lane-foot.active .chord-svg { box-shadow: 0 0 0 3px #ffd97a, 0 6px 14px rgba(0,0,0,.45); }
+
+/* 치는 순간 — 판정선과 코드 그림이 짧게 반응합니다 */
+#screen-play .judge-line.pulse::before { animation: linePulse .22s ease-out; }
+@keyframes linePulse {
+  0%   { box-shadow: 0 0 14px rgba(255,255,255,.85); transform: scaleY(1); }
+  35%  { box-shadow: 0 0 26px rgba(255,217,122,1); transform: scaleY(2.4); }
+  100% { box-shadow: 0 0 14px rgba(255,255,255,.85); transform: scaleY(1); }
+}
+.lane-foot.beat .chord-svg { animation: footBeat .22s ease-out; }
+@keyframes footBeat {
+  0% { transform: scale(1); } 40% { transform: scale(1.08); } 100% { transform: scale(1); }
+}
+
+/* 전주 안내 */
+.intro-hint {
+  position: absolute; left: 50%; top: 40%; transform: translate(-50%, -50%);
+  text-align: center; z-index: 3; pointer-events: none;
+  background: rgba(18,26,46,.78); border: 3px solid var(--line);
+  border-radius: 20px; padding: 16px 26px;
+}
+.intro-hint .ih-top { font-size: 13px; color: var(--muted); }
+.intro-hint .ih-count {
+  font-size: 62px; font-weight: 900; color: var(--accent); line-height: 1.05;
+  font-variant-numeric: tabular-nums; text-shadow: 0 4px 0 rgba(0,0,0,.35);
+}
+.intro-hint .ih-chord { font-size: 15px; margin-bottom: 8px; }
+.intro-hint .ih-chord b { font-size: 22px; color: #fff; }
+.intro-hint .ih-dia { display: flex; justify-content: center; }
+.intro-hint .chord-svg { background: #fff; border-radius: 10px; }
