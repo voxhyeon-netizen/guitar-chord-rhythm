@@ -46,6 +46,8 @@
       line: document.querySelector('#screen-play .judge-line'),
       feet: $('laneFeet'),
       popup: $('judgePopup'),
+      fx: $('fxLayer'),
+      splash: $('comboSplash'),
       comboFloat: $('comboFloat'),
       nowChord: $('nowChord'),
       nextChord: $('nextChord'),
@@ -115,6 +117,11 @@
     lastTarget = null;
     el.songName.textContent = song.title || '';
     el.layer.innerHTML = '';
+    el.fx.innerHTML = '';
+    for (let i = 1; i <= TIERS.length; i++) el.field.classList.remove('tier' + i);
+    el.field.classList.remove('shake');
+    el.splash.classList.remove('show');
+    el.comboFloat.className = 'combo-float';
     updateHud();
     setChordPanel(notes.length ? notes[0].chord : null, notes[1] ? notes[1].chord : null);
     measure();
@@ -373,7 +380,7 @@
       stats.good++;
       stats.combo++;
       stats.score += Math.round(100 * (1 + Math.min(stats.combo, 50) * 0.02));
-      GAudio.sfx.good();
+      GAudio.sfx.goodStep((stats.combo - 1) % 8);
       if (n.elem) n.elem.classList.add('hit-good');
     } else if (kind === 'soso') {
       stats.soso++;
@@ -389,6 +396,7 @@
 
     flashLane(n.lane, kind);
     popup(kind, n.lane);
+    comboFx(kind, n.lane);
     fadeOut(n);
     if (lastTarget === n) lastTarget = null;
     updateHud();
@@ -405,12 +413,72 @@
     el.popup.classList.add('show');
 
     if (kind !== 'miss' && stats.combo >= 3) {
+      el.comboFloat.className = 'combo-float t' + comboTier(stats.combo);
       el.comboFloat.textContent = stats.combo + ' COMBO';
       el.comboFloat.classList.remove('show');
       void el.comboFloat.offsetWidth;
       el.comboFloat.classList.add('show');
     } else if (kind === 'miss') {
       el.comboFloat.classList.remove('show');
+    }
+  }
+
+  /* ---------- 콤보 연출 ---------- */
+  const TIERS = [5, 10, 20, 30, 50];
+
+  function comboTier(c) {
+    let t = 0;
+    for (let i = 0; i < TIERS.length; i++) if (c >= TIERS[i]) t = i + 1;
+    return t;
+  }
+
+  function comboFx(kind, lane) {
+    const tier = kind === 'miss' ? 0 : comboTier(stats.combo);
+    for (let i = 1; i <= TIERS.length; i++) el.field.classList.toggle('tier' + i, i === tier);
+
+    if (kind === 'miss') {
+      el.field.classList.add('shake');
+      setTimeout(function () { el.field.classList.remove('shake'); }, 300);
+      return;
+    }
+
+    sparks(lane, 4 + tier * 3, tier);
+
+    /* 10콤보마다 크게 터뜨립니다 */
+    if (stats.combo > 0 && stats.combo % 10 === 0) {
+      splash(stats.combo + ' COMBO!');
+      sparks(-1, 26, Math.max(2, tier));
+      GAudio.sfx.milestone();
+    }
+  }
+
+  function splash(text) {
+    el.splash.textContent = text;
+    el.splash.classList.remove('show');
+    void el.splash.offsetWidth;
+    el.splash.classList.add('show');
+  }
+
+  /* 판정선 쪽에서 튀어오르는 작은 불꽃 */
+  function sparks(lane, count, tier) {
+    const laneW = el.field.clientWidth / Math.max(1, lanes.length);
+    const x = lane < 0 ? el.field.clientWidth / 2 : lane * laneW + laneW / 2;
+    const y = judgeY - NOTE_H / 2;
+    const hue = lane < 0 ? 45 : GChords.colorOf(lanes[lane] || 'C').hue;
+
+    for (let i = 0; i < count; i++) {
+      const s = document.createElement('i');
+      s.className = 'spark';
+      const ang = Math.random() * Math.PI - Math.PI / 2;      // 위쪽으로 퍼지게
+      const dist = 40 + Math.random() * (60 + tier * 30);
+      s.style.left = x + 'px';
+      s.style.top = y + 'px';
+      s.style.setProperty('--dx', (Math.cos(ang) * dist).toFixed(0) + 'px');
+      s.style.setProperty('--dy', (-Math.abs(Math.sin(ang)) * dist - 20).toFixed(0) + 'px');
+      s.style.background = 'hsl(' + (hue + (Math.random() * 40 - 20)) + ', 90%, ' + (60 + Math.random() * 20) + '%)';
+      s.style.width = s.style.height = (4 + Math.random() * (3 + tier)) + 'px';
+      el.fx.appendChild(s);
+      setTimeout(function () { if (s.parentNode) s.parentNode.removeChild(s); }, 700);
     }
   }
 

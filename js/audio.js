@@ -223,10 +223,22 @@
     miss:    { dur: 0.30, notes: [{ f: 170, t: 0, d: 0.28, g: 0.6, decay: 7, type: 'saw' }] },
     tick:    { dur: 0.08, notes: [{ f: 900, t: 0, d: 0.06, g: 0.5, decay: 40, type: 'square' }] },
     tickHi:  { dur: 0.08, notes: [{ f: 1400, t: 0, d: 0.06, g: 0.6, decay: 40, type: 'square' }] },
+    milestone: { dur: 0.75, notes: [
+                 { f: 784, t: 0, d: 0.16, g: 0.5 }, { f: 1047, t: 0.1, d: 0.18, g: 0.5 },
+                 { f: 1319, t: 0.2, d: 0.22, g: 0.5 }, { f: 1568, t: 0.32, d: 0.3, g: 0.45 }] },
     fanfare: { dur: 0.80, notes: [
                  { f: 523, t: 0, d: 0.2, g: 0.5 }, { f: 659, t: 0.15, d: 0.2, g: 0.5 },
                  { f: 784, t: 0.3, d: 0.2, g: 0.5 }, { f: 1047, t: 0.45, d: 0.3, g: 0.5 }] },
   };
+
+  /* 콤보가 이어질수록 한 음씩 올라가는 성공음 (도-레-미-솔-라-도…) */
+  const STEP_HZ = [880, 988, 1109, 1319, 1480, 1760, 1976, 2217];
+  STEP_HZ.forEach(function (f, i) {
+    SFX_SPEC['good' + i] = {
+      dur: 0.3,
+      notes: [{ f: f, t: 0, d: 0.12, g: 0.5 }, { f: f * 1.5, t: 0.06, d: 0.18, g: 0.35 }],
+    };
+  });
 
   const pools = {};
   function pool(name) {
@@ -282,6 +294,11 @@
     miss: function () { playSfx('miss'); },
     tick: function (strong) { playSfx(strong ? 'tickHi' : 'tick'); },
     fanfare: function () { playSfx('fanfare'); },
+    milestone: function () { playSfx('milestone'); },
+    goodStep: function (step) {
+      const i = Math.max(0, Math.min(STEP_HZ.length - 1, step | 0));
+      playSfx('good' + i);
+    },
   };
 
   function testTone() { unlock(); playSfx('fanfare'); }

@@ -400,3 +400,68 @@ html.gate-on body > .toast { display: none !important; }
 /* 탭 템포 — 누르는 즉시 눈으로도 보이게 */
 #edTap { min-width: 104px; transition: none; }
 #edTap.tap-hit { background: linear-gradient(180deg, #ffd97a, #ffa502); color: #43290a; transform: translateY(2px); }
+
+/* ===== 콤보 연출 ===== */
+.fx-layer { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.spark {
+  position: absolute; border-radius: 50%; pointer-events: none;
+  transform: translate(-50%, -50%);
+  animation: sparkFly .65s cubic-bezier(.17,.67,.5,1) forwards;
+}
+@keyframes sparkFly {
+  0%   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(.4); }
+}
+
+/* 콤보가 쌓일수록 바닥에서 올라오는 빛이 진해집니다 (천천히 숨쉬듯 — 번쩍이지 않게) */
+.lane-field::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 1;
+  background: linear-gradient(0deg, var(--fever, transparent) 0%, transparent 55%);
+  opacity: 0; transition: opacity .4s;
+}
+.lane-field.tier1::before { --fever: rgba(46,213,115,.30); opacity: 1; }
+.lane-field.tier2::before { --fever: rgba(30,144,255,.38); opacity: 1; }
+.lane-field.tier3::before { --fever: rgba(255,165,2,.45); opacity: 1; animation: fever 1.8s ease-in-out infinite; }
+.lane-field.tier4::before { --fever: rgba(255,107,129,.5); opacity: 1; animation: fever 1.5s ease-in-out infinite; }
+.lane-field.tier5::before { --fever: rgba(214,48,255,.55); opacity: 1; animation: fever 1.2s ease-in-out infinite; }
+@keyframes fever { 0%,100% { opacity: .75; } 50% { opacity: 1; } }
+
+.lane-field.tier3, .lane-field.tier4, .lane-field.tier5 { box-shadow: inset 0 0 60px rgba(255,165,2,.18); }
+.lane-field.tier5 { box-shadow: inset 0 0 80px rgba(214,48,255,.25); }
+
+.lane-field.shake { animation: fieldShake .28s ease-out; }
+@keyframes fieldShake {
+  0%,100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+/* 10콤보마다 터지는 글자 */
+.combo-splash {
+  position: absolute; left: 50%; top: 38%; transform: translate(-50%, -50%);
+  font-size: 54px; font-weight: 900; letter-spacing: -1px; opacity: 0;
+  pointer-events: none; z-index: 3; white-space: nowrap;
+  color: #fff; text-shadow: 0 0 18px rgba(255,200,60,.9), 0 5px 0 rgba(0,0,0,.45);
+}
+.combo-splash.show { animation: splashPop .9s cubic-bezier(.2,.9,.3,1) forwards; }
+@keyframes splashPop {
+  0%   { opacity: 0; transform: translate(-50%,-50%) scale(.4) rotate(-6deg); }
+  25%  { opacity: 1; transform: translate(-50%,-50%) scale(1.18) rotate(2deg); }
+  60%  { opacity: 1; transform: translate(-50%,-50%) scale(1) rotate(0); }
+  100% { opacity: 0; transform: translate(-50%,-58%) scale(1.05); }
+}
+
+/* 콤보 숫자도 단계별로 커지고 색이 바뀝니다 */
+.combo-float.t1 { color: #2ed573; }
+.combo-float.t2 { color: #1e90ff; font-size: 34px; }
+.combo-float.t3 { color: #ffa502; font-size: 38px; text-shadow: 0 0 14px rgba(255,165,2,.7), 0 4px 0 rgba(0,0,0,.4); }
+.combo-float.t4 { color: #ff6b81; font-size: 42px; text-shadow: 0 0 16px rgba(255,107,129,.8), 0 4px 0 rgba(0,0,0,.4); }
+.combo-float.t5 { color: #d630ff; font-size: 46px; text-shadow: 0 0 20px rgba(214,48,255,.9), 0 4px 0 rgba(0,0,0,.4); }
+
+@media (max-width: 640px) {
+  .combo-splash { font-size: 36px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lane-field::before { animation: none !important; }
+  .combo-splash.show { animation-duration: .5s; }
+}
