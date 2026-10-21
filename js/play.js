@@ -325,8 +325,9 @@
       for (let i = 0; i < marks.length; i++) {
         const off = (marks[i].t - n.t) / dur * h;
         if (off < headH * 0.8) continue;              // 머리와 겹치면 생략
-        html += '<i class="strum" style="bottom:' + off.toFixed(1) + 'px">' +
-          GStrum.arrow(marks[i].dir) + '</i>';
+        const up = marks[i].dir === 'U';
+        html += '<i class="strum ' + (up ? 'up' : 'down') + '" style="bottom:' +
+          off.toFixed(1) + 'px">' + (up ? '▲' : '▼') + '</i>';
       }
     }
 

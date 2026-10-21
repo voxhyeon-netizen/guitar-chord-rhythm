@@ -999,8 +999,10 @@
       for (let i = 0; i < marks.length; i++) {
         const mx = x + (marks[i].t - noteT) * pxPerSec;
         if (mx < x + head - 2) continue;
-        ctx.fillStyle = marks[i].dir === 'U' ? '#9fd3ff' : '#ffffff';
-        ctx.fillText(GStrum.arrow(marks[i].dir), mx, NOTE_TOP + NOTE_H - 12);
+        const up = marks[i].dir === 'U';
+        ctx.fillStyle = up ? 'rgba(159,211,255,.85)' : '#ffffff';
+        ctx.font = up ? '900 11px Nunito, sans-serif' : '900 17px Nunito, sans-serif';
+        ctx.fillText(up ? '▲' : '▼', mx, NOTE_TOP + NOTE_H - (up ? 14 : 10));
       }
       ctx.textAlign = 'left';
       if (ownPattern) {

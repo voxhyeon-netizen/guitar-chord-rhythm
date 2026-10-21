@@ -206,13 +206,24 @@ a.btn { text-decoration: none; display: inline-block; }
   opacity: .4;
 }
 /* 치는 순간을 알려주는 화살표 — 판정선을 지날 때마다 한 번씩 칩니다 */
+/* 스트로크 표시 — 내려치기는 크고 진하게, 올려치기는 작고 연하게 */
 .note .strum {
   position: absolute; left: 50%; transform: translateX(-50%);
   font-style: normal; font-weight: 900; line-height: 1; pointer-events: none;
-  font-size: clamp(16px, 2.4vh, 30px);
-  color: #16233c; background: rgba(255,255,255,.82);
-  border: 2px solid rgba(0,0,0,.35); border-radius: 8px;
-  padding: 2px 7px 3px;
+  border-radius: 9px; text-align: center;
+}
+.note .strum.down {
+  font-size: clamp(22px, 3.4vh, 42px);
+  color: #121c2e; background: #fff;
+  border: 3px solid rgba(0,0,0,.5);
+  padding: 3px 12px 5px;
+  box-shadow: 0 3px 0 rgba(0,0,0,.3);
+}
+.note .strum.up {
+  font-size: clamp(12px, 1.8vh, 22px);
+  color: #44546f; background: rgba(255,255,255,.42);
+  border: 2px dashed rgba(0,0,0,.28);
+  padding: 1px 6px 2px;
 }
 /* 막대의 머리 — 여기가 판정선에 닿는 순간이 '치기 시작' 입니다 */
 .note-head {
