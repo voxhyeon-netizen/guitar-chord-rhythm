@@ -586,3 +586,106 @@ html.gate-on body > .toast { display: none !important; }
 .intro-hint .ih-chord b { font-size: 22px; color: #fff; }
 .intro-hint .ih-dia { display: flex; justify-content: center; }
 .intro-hint .chord-svg { background: #fff; border-radius: 10px; }
+
+/* ===========================================================
+   밝은 화면 (빔프로젝터용)
+   교실 조명 아래 프로젝터는 어두운 색이 전부 까맣게 뭉칩니다.
+   배경을 밝게, 글자와 막대를 진하게 — 대비를 최대한 높입니다.
+   =========================================================== */
+html.bright {
+  --bg: #eef1f7;
+  --bg-2: #ffffff;
+  --panel: #ffffff;
+  --line: #9fb0cc;
+  --ink: #15203a;
+  --muted: #4a5a78;
+}
+html.bright body { background: #eef1f7; color: var(--ink); }
+
+/* 홈 */
+html.bright .home-head h1 { text-shadow: none; color: #15203a; }
+html.bright .empty-note { color: #4a5a78; }
+html.bright .home-foot b { background: #3a4d79; }
+html.bright .song-card { background: #fff; border-color: #9fb0cc; box-shadow: 0 2px 0 rgba(20,30,60,.12); }
+html.bright .song-card h3 { color: #15203a; }
+html.bright .chip { color: #15203a !important; border: 2px solid rgba(0,0,0,.35); }
+html.bright .level-row { color: #15203a; border-color: rgba(0,0,0,.45); }
+html.bright .level-row.lv-normal, html.bright .level-row.lv-hard { color: #fff; }
+html.bright .mode-note { background: #dfe8f7; color: #15203a; }
+html.bright .offline-state { color: #4a5a78; }
+
+/* 연주 화면 */
+html.bright .play-top { background: #fff; border-bottom: 3px solid #9fb0cc; }
+html.bright .play-song, html.bright .play-stats .stat b { color: #15203a; }
+html.bright .play-progress { background: #d6deec; }
+html.bright .lane-field { background: #f7f9fd; }
+html.bright .lane-col { border-right-color: rgba(21,32,58,.14); }
+html.bright .lane-col::after { opacity: .10; }
+html.bright .lane-field.tier1::before,
+html.bright .lane-field.tier2::before,
+html.bright .lane-field.tier3::before,
+html.bright .lane-field.tier4::before,
+html.bright .lane-field.tier5::before { opacity: .55; }
+
+/* 판정선 — 밝은 배경에서는 진한 선이 가장 잘 보입니다 */
+html.bright #screen-play .judge-line { border-top-color: #15203a; filter: none; }
+html.bright #screen-play .judge-line::before {
+  background: linear-gradient(90deg, rgba(21,32,58,0), #15203a 15%, #15203a 85%, rgba(21,32,58,0));
+  box-shadow: 0 0 10px rgba(21,32,58,.5);
+}
+html.bright #screen-play .judge-line.pulse::before { animation: linePulseBright .22s ease-out; }
+@keyframes linePulseBright {
+  0%   { box-shadow: 0 0 10px rgba(21,32,58,.5); transform: scaleY(1); }
+  35%  { box-shadow: 0 0 20px rgba(214,120,0,.95); transform: scaleY(2.4); }
+  100% { box-shadow: 0 0 10px rgba(21,32,58,.5); transform: scaleY(1); }
+}
+html.bright #screen-play .judge-line-label { background: #15203a; color: #fff; }
+
+/* 막대와 화살표 */
+html.bright .note-head { color: #fff; text-shadow: 0 2px 0 rgba(0,0,0,.35); border-color: rgba(0,0,0,.45); }
+html.bright .note-body { opacity: .55; border-color: rgba(0,0,0,.3); }
+html.bright .note .strum.down { background: #15203a; color: #fff; border-color: #0b1223; }
+html.bright .note .strum.up { background: rgba(21,32,58,.16); color: #15203a; border-color: rgba(21,32,58,.45); }
+html.bright .note.judged-good .note-head { background: #15203a !important; color: #fff; }
+html.bright .note.judged-miss .note-head { background: #b9c2d2 !important; color: #2b3444; }
+
+/* 옆 패널·코드 그림 */
+html.bright .play-side { background: #fff; border-left-color: #9fb0cc; }
+html.bright .side-box, html.bright .tally span { background: #eef2f9; }
+html.bright .side-label { color: #4a5a78; }
+html.bright .lane-foot { filter: brightness(.95) saturate(.85); }
+html.bright .lane-foot.active { filter: none; }
+html.bright .lane-foot .chord-svg { box-shadow: 0 2px 6px rgba(20,30,60,.25); }
+html.bright .lane-foot.active .chord-svg { box-shadow: 0 0 0 3px #e08a00, 0 4px 10px rgba(20,30,60,.3); }
+
+/* 글자 연출 */
+html.bright .combo-splash { color: #15203a; text-shadow: 0 0 14px rgba(255,190,60,.9), 0 3px 0 rgba(255,255,255,.8); }
+html.bright .judge-popup { text-shadow: 0 2px 0 rgba(255,255,255,.9); }
+html.bright .combo-float { text-shadow: 0 2px 0 rgba(255,255,255,.9); }
+html.bright .intro-hint { background: rgba(255,255,255,.95); border-color: #9fb0cc; }
+html.bright .intro-hint .ih-count { color: #d67800; text-shadow: none; }
+html.bright .intro-hint .ih-chord b { color: #15203a; }
+html.bright .count-num { color: #d67800; text-shadow: 0 4px 0 rgba(255,255,255,.8); }
+
+/* 판정 버튼·설정창 */
+html.bright .judge-bar { background: #fff; border-top-color: #9fb0cc; }
+html.bright .overlay { background: rgba(230,235,245,.9); }
+html.bright .panel { background: #fff; border-color: #9fb0cc; }
+html.bright .panel h2, html.bright .set-row > label { color: #15203a; }
+html.bright .set-row input[type="number"] { background: #fff; color: #15203a; }
+html.bright .result-card { background: #fff; border-color: #9fb0cc; }
+html.bright .result-card h2, html.bright .result-score { color: #15203a; }
+html.bright .rg { background: #eef2f9; }
+html.bright .result-comment { color: #b06a00; }
+html.bright .result-stars { color: #e0a000; text-shadow: none; }
+
+/* 채보 화면 (맥에서 빔프로젝터로 보여줄 때) */
+html.bright .ed-transport, html.bright .ed-levels, html.bright .ed-palette,
+html.bright .ed-brush, html.bright .ed-title { background: #fff; color: #15203a; }
+html.bright .ed-title { border-color: #9fb0cc; }
+html.bright .ed-field input, html.bright .ed-field select { background: #fff; color: #15203a; border-color: #9fb0cc; }
+html.bright .ed-timeline { background: #fff; border-color: #9fb0cc; }
+html.bright .note-chip { border-color: rgba(0,0,0,.4); }
+html.bright .gate-card { background: #fff; }
+html.bright .gate-card input { background: #fff; color: #15203a; }
+html.bright .toast { background: #15203a; color: #fff; }

@@ -323,8 +323,12 @@
     d.style.width = laneW + 'px';
     d.style.left = (n.lane * laneW) + 'px';
 
-    let html = '<div class="note-body" style="background:linear-gradient(180deg,' +
-      col.light + ',' + col.main + ')"></div>';
+    /* 빔프로젝터(밝은 화면)에서는 연한 색이 날아가서 진한 쪽으로 칠합니다 */
+    const bright = document.documentElement.classList.contains('bright');
+    const grad = bright
+      ? 'linear-gradient(180deg,' + col.main + ',' + col.dark + ')'
+      : 'linear-gradient(180deg,' + col.light + ',' + col.main + ')';
+    let html = '<div class="note-body" style="background:' + grad + '"></div>';
 
     /* 치는 순간마다 화살표 — 판정선을 지나갈 때 치면 됩니다 */
     if (n.pat && global.GStrum) {
@@ -339,8 +343,8 @@
       }
     }
 
-    html += '<div class="note-head" style="height:' + headH + 'px;background:linear-gradient(180deg,' +
-      col.light + ',' + col.main + ')">' + n.chord + '</div>';
+    html += '<div class="note-head" style="height:' + headH + 'px;background:' + grad + '">' +
+      n.chord + '</div>';
 
     d.innerHTML = html;
     el.layer.appendChild(d);

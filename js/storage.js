@@ -12,6 +12,7 @@
     autoMiss: true,      // (직접 판정일 때) 안 누르고 지나가면 실패로
     judgeMode: 'autoGood',   // autoGood = 기본 성공 · 리모컨을 누르면 실패 / manual = 직접 판정
     levelAutoSettings: true, // 난이도에 맞춰 낙하 속도·판정 구간을 자동으로
+    theme: 'dark',           // dark = 어두운 화면 / bright = 밝은 화면(빔프로젝터)
     showDiagram: true,
     countInBeats: 4,
     keyGood: 'KeyX',

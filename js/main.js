@@ -67,6 +67,7 @@
     document.addEventListener('keydown', onRemoteCheckKey);
     document.addEventListener('keydown', onResultKey);
 
+    applyTheme(GStore.getSettings().theme);
     unlockAudioOnFirstTouch();
     setupOffline();
     watchForeground();
@@ -79,6 +80,10 @@
       reportOffline();
     });
   });
+
+  function applyTheme(theme) {
+    document.documentElement.classList.toggle('bright', theme === 'bright');
+  }
 
   /* 아이패드는 화면을 누르는 순간에만 오디오 잠금이 풀립니다. 처음 몇 번은 계속 시도합니다. */
   function unlockAudioOnFirstTouch() {
@@ -590,6 +595,18 @@
       });
     });
 
+    Array.prototype.forEach.call(document.querySelectorAll('[data-theme]'), function (b) {
+      b.addEventListener('click', function () {
+        const cur = GStore.getSettings();
+        cur.theme = b.dataset.theme;
+        GStore.saveSettings(cur);
+        applyTheme(cur.theme);
+        settingsValues();
+        renderList();
+        toast(cur.theme === 'bright' ? '밝은 화면으로 바꿨어요.' : '어두운 화면으로 바꿨어요.');
+      });
+    });
+
     Array.prototype.forEach.call(document.querySelectorAll('[data-judgemode]'), function (b) {
       b.addEventListener('click', function () {
         const cur = GStore.getSettings();
@@ -629,6 +646,21 @@
     $('setLateVal').textContent = Number(s.lateWindow).toFixed(2);
     $('setAutoMiss').checked = !!s.autoMiss;
     $('setLevelAuto').checked = !!s.levelAutoSettings;
+    Array.prototype.forEach.call(document.querySelectorAll('[data-theme]'), function (b) {
+      b.classList.toggle('btn-primary', b.dataset.theme === (s.theme || 'dark'));
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-theme]'), function (b) {
+      b.addEventListener('click', function () {
+        const cur = GStore.getSettings();
+        cur.theme = b.dataset.theme;
+        GStore.saveSettings(cur);
+        applyTheme(cur.theme);
+        settingsValues();
+        renderList();
+        toast(cur.theme === 'bright' ? '밝은 화면으로 바꿨어요.' : '어두운 화면으로 바꿨어요.');
+      });
+    });
+
     Array.prototype.forEach.call(document.querySelectorAll('[data-judgemode]'), function (b) {
       b.classList.toggle('btn-primary', b.dataset.judgemode === (s.judgeMode || 'autoGood'));
     });
