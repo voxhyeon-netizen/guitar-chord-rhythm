@@ -68,6 +68,7 @@
     document.addEventListener('keydown', onResultKey);
 
     applyTheme(GStore.getSettings().theme);
+    updateHomeSub();
     unlockAudioOnFirstTouch();
     setupOffline();
     watchForeground();
@@ -625,13 +626,14 @@
         cur.inputMode = b.dataset.inputmode;
         GStore.saveSettings(cur);
         settingsValues();
+        updateHomeSub();
         if (cur.inputMode !== 'mic') {
           stopMicTest();
-          toast('리모컨·키보드로 판정합니다.');
+          toast('수업용 — 선생님이 리모컨·키보드로 판정합니다.');
         } else if (!GMic.supported() || !GMic.secure()) {
           toast('이 주소에서는 마이크를 쓸 수 없어요. 웹 주소(https)나 맥에서 열어주세요.');
         } else {
-          toast('마이크가 소리를 듣고 판정합니다. 아래 마이크 테스트로 민감도를 맞춰보세요.');
+          toast('혼자 연습 — 마이크가 듣고 판정합니다. 아래 마이크 테스트로 민감도를 맞춰보세요.');
         }
       });
     });
@@ -704,6 +706,15 @@
     if (!GMic.isRunning()) return;
     $('setMicMeterFill').style.width = Math.round(GMic.level() * 100) + '%';
     micTestRaf = requestAnimationFrame(micTestLoop);
+  }
+
+  /* 홈 소개 문구 — 수업이냐 혼자 연습이냐에 따라 다릅니다 */
+  function updateHomeSub() {
+    const sub = $('homeSub');
+    if (!sub) return;
+    sub.textContent = GStore.getSettings().inputMode === 'mic'
+      ? '노래에 맞춰 내려오는 코드를 연주하면, 마이크가 듣고 판정해요.'
+      : '노래에 맞춰 내려오는 코드를 연주하고, 선생님이 바로 판정해요.';
   }
 
   function settingsValues() {

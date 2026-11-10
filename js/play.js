@@ -22,6 +22,8 @@
   let stats = null;
   let lastTarget = null;
   let micOn = false;            // 마이크로 판정하는 중인가
+  let micHits = 0;              // 이번 연주에서 들린 횟수
+  let micWarned = false;        // 소리가 안 들어온다고 한 번 알렸는가
   let lastToggleMs = 0;
 
   /* lead-in: the clock starts at -leadSec so the first chord falls in from the top */
@@ -291,7 +293,16 @@
 
       if (n.state === 'wait' && dt < -settings.lateWindow) {
         /* 마이크 모드: 소리가 안 났으니 실패. 기본 성공으로 넘기면 마이크를 켠 뜻이 없어집니다 */
-        if (micOn) applyJudge(n, 'miss', true);
+        if (micOn) {
+          applyJudge(n, 'miss', true);
+          /* 혼자 연습할 때는 알려줄 사람이 없습니다 — 마이크가 아예 못 듣고 있으면 말해줍니다 */
+          if (!micWarned && micHits === 0 && stats.miss >= 3) {
+            micWarned = true;
+            if (global.GMain) {
+              GMain.toast('마이크로 소리가 안 들어오고 있어요. 설정에서 민감도를 올리거나 마이크 허용을 확인해 주세요.');
+            }
+          }
+        }
         else if (settings.judgeMode === 'autoGood') applyJudge(n, 'good', true);
         else if (settings.autoMiss) applyJudge(n, 'miss', true);
         else { n.state = 'skip'; stats.skip++; markJudged(n, 'soso'); }
@@ -514,6 +525,8 @@
      (교실에서 여럿이 함께 치면 화음 구분이 되지 않고, 수업에서 필요한 것도 타이밍입니다). */
   function startMic() {
     micOn = false;
+    micHits = 0;
+    micWarned = false;
     el.micBadge.classList.add('hidden');
     if (settings.inputMode !== 'mic' || !global.GMic) return;
 
@@ -545,6 +558,7 @@
     const target = findTarget(t);
     /* 칠 차례가 아닐 때 난 소리(반주·잡음)는 그냥 흘려보냅니다 */
     if (!target) return;
+    micHits++;
     const off = Math.abs(target.t - t);
     applyJudge(target, off <= settings.lateWindow * 0.6 ? 'good' : 'soso', false);
     flashLane(target.lane, 'good');

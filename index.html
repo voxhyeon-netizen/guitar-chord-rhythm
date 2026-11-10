@@ -56,7 +56,7 @@
 <section id="screen-home" class="screen active">
   <header class="home-head">
     <h1>🎸 기타 코드 리듬</h1>
-    <p>노래에 맞춰 내려오는 코드를 연주하고, 선생님이 바로 판정해요.</p>
+    <p id="homeSub">노래에 맞춰 내려오는 코드를 연주하고, 선생님이 바로 판정해요.</p>
   </header>
 
   <div class="home-actions">
@@ -345,15 +345,18 @@
       </div>
     </div>
     <div class="set-row">
-      <label>입력 방식 <small>무엇으로 판정할지 — 리모컨은 선생님이, 마이크는 소리가 판정합니다</small></label>
+      <label>입력 방식
+        <small>수업은 선생님이 리모컨으로, 혼자 연습할 때는 마이크가 대신 판정합니다</small>
+      </label>
       <div class="judge-mode-btns">
-        <button class="btn btn-sm2" data-inputmode="remote">리모컨 · 키보드</button>
-        <button class="btn btn-sm2" data-inputmode="mic">🎤 마이크</button>
+        <button class="btn btn-sm2" data-inputmode="remote">리모컨 · 키보드 <b>(수업용)</b></button>
+        <button class="btn btn-sm2" data-inputmode="mic">🎤 마이크 <b>(혼자 연습)</b></button>
       </div>
     </div>
     <div class="set-row" id="setMicRow">
       <label>마이크 민감도
-        <small>쳤는데 반응이 없으면 올리고, 반주 소리에도 반응하면 내리세요</small>
+        <small>쳤는데 반응이 없으면 올리고, 반주 소리에도 반응하면 내리세요.
+        이어폰을 끼면 반주가 섞이지 않아 가장 정확합니다</small>
       </label>
       <div class="mic-setup">
         <input type="range" id="setMicSens" min="0" max="1" step="0.05" />
