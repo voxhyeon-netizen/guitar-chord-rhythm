@@ -619,6 +619,32 @@
       });
     });
 
+    Array.prototype.forEach.call(document.querySelectorAll('[data-inputmode]'), function (b) {
+      b.addEventListener('click', function () {
+        const cur = GStore.getSettings();
+        cur.inputMode = b.dataset.inputmode;
+        GStore.saveSettings(cur);
+        settingsValues();
+        if (cur.inputMode !== 'mic') {
+          stopMicTest();
+          toast('리모컨·키보드로 판정합니다.');
+        } else if (!GMic.supported() || !GMic.secure()) {
+          toast('이 주소에서는 마이크를 쓸 수 없어요. 웹 주소(https)나 맥에서 열어주세요.');
+        } else {
+          toast('마이크가 소리를 듣고 판정합니다. 아래 마이크 테스트로 민감도를 맞춰보세요.');
+        }
+      });
+    });
+
+    const micSens = $('setMicSens');
+    micSens.addEventListener('input', function () {
+      const cur = GStore.getSettings();
+      cur.micSens = parseFloat(micSens.value);
+      GStore.saveSettings(cur);
+      GMic.setSensitivity(cur.micSens);
+    });
+    $('setMicTest').addEventListener('click', toggleMicTest);
+
     const levelAuto = $('setLevelAuto');
     levelAuto.addEventListener('change', function () {
       const cur = GStore.getSettings();
@@ -627,13 +653,57 @@
       renderList();
     });
 
-    $('setClose').addEventListener('click', function () { el.settingsOverlay.classList.remove('show'); });
+    $('setClose').addEventListener('click', function () {
+      stopMicTest();
+      el.settingsOverlay.classList.remove('show');
+    });
     $('setReset').addEventListener('click', function () {
       GStore.saveSettings(JSON.parse(JSON.stringify(GStore.defaultSettings)));
       el.settingsOverlay.classList.remove('show');
       settingsValues();
       toast('기본값으로 되돌렸어요.');
     });
+  }
+
+  /* ---------- 마이크 테스트 ----------
+     수업 전에 한 번 쳐보면서 민감도를 맞추는 자리입니다. */
+  let micTestRaf = 0;
+
+  function toggleMicTest() {
+    if (GMic.isRunning()) { stopMicTest(); return; }
+    GMic.setSensitivity(GStore.getSettings().micSens);
+    GMic.onOnset(function () {
+      const hit = $('setMicHit');
+      hit.classList.add('show');
+      clearTimeout(hit._t);
+      hit._t = setTimeout(function () { hit.classList.remove('show'); }, 260);
+    });
+    GMic.start().then(function () {
+      $('setMicTest').textContent = '테스트 멈추기';
+      $('setMicTest').classList.add('on');
+      micTestLoop();
+    }).catch(function (err) {
+      toast(err && err.message === 'insecure'
+        ? '이 주소에서는 마이크를 쓸 수 없어요. 웹 주소(https)나 맥에서 열어주세요.'
+        : '마이크를 열지 못했어요. 브라우저가 물어보는 마이크 사용 허용을 눌러주세요.');
+    });
+  }
+
+  function stopMicTest() {
+    cancelAnimationFrame(micTestRaf);
+    micTestRaf = 0;
+    if (GMic.isRunning()) GMic.stop();
+    GMic.onOnset(null);
+    const b = $('setMicTest');
+    if (b) { b.textContent = '마이크 테스트'; b.classList.remove('on'); }
+    const fill = $('setMicMeterFill');
+    if (fill) fill.style.width = '0%';
+  }
+
+  function micTestLoop() {
+    if (!GMic.isRunning()) return;
+    $('setMicMeterFill').style.width = Math.round(GMic.level() * 100) + '%';
+    micTestRaf = requestAnimationFrame(micTestLoop);
   }
 
   function settingsValues() {
@@ -649,23 +719,21 @@
     Array.prototype.forEach.call(document.querySelectorAll('[data-theme]'), function (b) {
       b.classList.toggle('btn-primary', b.dataset.theme === (s.theme || 'dark'));
     });
-    Array.prototype.forEach.call(document.querySelectorAll('[data-theme]'), function (b) {
-      b.addEventListener('click', function () {
-        const cur = GStore.getSettings();
-        cur.theme = b.dataset.theme;
-        GStore.saveSettings(cur);
-        applyTheme(cur.theme);
-        settingsValues();
-        renderList();
-        toast(cur.theme === 'bright' ? '밝은 화면으로 바꿨어요.' : '어두운 화면으로 바꿨어요.');
-      });
-    });
 
     Array.prototype.forEach.call(document.querySelectorAll('[data-judgemode]'), function (b) {
       b.classList.toggle('btn-primary', b.dataset.judgemode === (s.judgeMode || 'autoGood'));
     });
+    const mic = (s.inputMode === 'mic');
+    Array.prototype.forEach.call(document.querySelectorAll('[data-inputmode]'), function (b) {
+      b.classList.toggle('btn-primary', b.dataset.inputmode === (s.inputMode || 'remote'));
+    });
+    $('setMicSens').value = s.micSens;
+    $('setMicRow').style.display = mic ? '' : 'none';
+    /* 마이크가 판정하는 동안에는 '판정 방식'이 쓰이지 않습니다 */
+    const jmRow = $('setJudgeModeRow');
+    if (jmRow) jmRow.style.display = mic ? 'none' : '';
     const amRow = $('setAutoMissRow');
-    if (amRow) amRow.style.display = (s.judgeMode === 'manual') ? '' : 'none';
+    if (amRow) amRow.style.display = (!mic && s.judgeMode === 'manual') ? '' : 'none';
     $('setDiagram').checked = !!s.showDiagram;
     $('setCountIn').value = s.countInBeats;
 

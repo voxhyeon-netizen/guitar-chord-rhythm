@@ -21,6 +21,7 @@
   let GAP = 14;
   let stats = null;
   let lastTarget = null;
+  let micOn = false;            // 마이크로 판정하는 중인가
   let lastToggleMs = 0;
 
   /* lead-in: the clock starts at -leadSec so the first chord falls in from the top */
@@ -61,6 +62,8 @@
       countOverlay: $('countOverlay'),
       countNum: $('countNum'),
       pauseOverlay: $('pauseOverlay'),
+      micBadge: $('micBadge'),
+      micFill: $('micMeterFill'),
       resume: $('btnResume'),
       restart: $('btnRestart'),
       quit: $('btnQuit'),
@@ -99,7 +102,9 @@
     song = s;
     settings = GStore.getSettings();
     if (overrides) Object.keys(overrides).forEach(function (k) { settings[k] = overrides[k]; });
-    el.bar.classList.toggle('auto-good', settings.judgeMode === 'autoGood');
+    /* 마이크가 판정할 때는 '실패' 버튼만 큰 모양이 어색합니다 — 선생님은 고칠 때만 누르니까요 */
+    el.bar.classList.toggle('auto-good',
+      settings.judgeMode === 'autoGood' && settings.inputMode !== 'mic');
     el.scroll.value = settings.scrollSec;
     el.rate.value = String(GAudio.getRate());
     finished = false;
@@ -131,6 +136,8 @@
         ? GStrum.times(song, n.pat, n.t, n.t + n.dur).map(function (m) { return m.t; })
         : [];
     });
+
+    startMic();
 
     stats = { good: 0, soso: 0, miss: 0, skip: 0, score: 0, combo: 0, maxCombo: 0 };
     lastTarget = null;
@@ -283,7 +290,9 @@
       const dt = n.t - t;
 
       if (n.state === 'wait' && dt < -settings.lateWindow) {
-        if (settings.judgeMode === 'autoGood') applyJudge(n, 'good', true);
+        /* 마이크 모드: 소리가 안 났으니 실패. 기본 성공으로 넘기면 마이크를 켠 뜻이 없어집니다 */
+        if (micOn) applyJudge(n, 'miss', true);
+        else if (settings.judgeMode === 'autoGood') applyJudge(n, 'good', true);
         else if (settings.autoMiss) applyJudge(n, 'miss', true);
         else { n.state = 'skip'; stats.skip++; markJudged(n, 'soso'); }
       }
@@ -306,6 +315,7 @@
     updateActiveLane(t);
     const dur = GAudio.duration();
     el.progress.style.width = (dur ? Math.max(0, Math.min(1, t / dur)) * 100 : 0) + '%';
+    if (micOn) el.micFill.style.width = Math.round(GMic.level() * 100) + '%';
 
     const last = notes.length ? notes[notes.length - 1] : null;
     if (last && t > last.t + 1.5 && notes.every(function (x) { return x.state !== 'wait'; })) finish();
@@ -497,6 +507,47 @@
         ? GChords.diagramSvg(next, { width: 130 })
         : '<div class="side-name">' + next + '</div>')
       : '<span class="side-empty">—</span>';
+  }
+
+  /* ---------- 마이크로 판정하기 ----------
+     마이크는 '쳤는지'만 알려줍니다. 어떤 코드인지는 가리지 않습니다
+     (교실에서 여럿이 함께 치면 화음 구분이 되지 않고, 수업에서 필요한 것도 타이밍입니다). */
+  function startMic() {
+    micOn = false;
+    el.micBadge.classList.add('hidden');
+    if (settings.inputMode !== 'mic' || !global.GMic) return;
+
+    GMic.setSensitivity(settings.micSens);
+    GMic.onOnset(onMicOnset);
+    GMic.start().then(function () {
+      micOn = true;
+      el.micBadge.classList.remove('hidden');
+    }).catch(function (err) {
+      /* 마이크를 못 쓰면 수업이 멈추지 않게 리모컨 방식으로 돌아갑니다 */
+      micOn = false;
+      if (!global.GMain) return;
+      GMain.toast(
+        err && err.message === 'insecure'
+          ? '이 주소에서는 마이크를 쓸 수 없어요. 웹 주소(https)로 열어주세요. 리모컨 방식으로 진행합니다.'
+          : '마이크를 쓸 수 없어 리모컨 방식으로 진행합니다.');
+    });
+  }
+
+  function stopMic() {
+    if (global.GMic && GMic.isRunning()) GMic.stop();
+    micOn = false;
+    if (el.micBadge) el.micBadge.classList.add('hidden');
+  }
+
+  function onMicOnset() {
+    if (!active || paused || finished || !micOn) return;
+    const t = songTime();
+    const target = findTarget(t);
+    /* 칠 차례가 아닐 때 난 소리(반주·잡음)는 그냥 흘려보냅니다 */
+    if (!target) return;
+    const off = Math.abs(target.t - t);
+    applyJudge(target, off <= settings.lateWindow * 0.6 ? 'good' : 'soso', false);
+    flashLane(target.lane, 'good');
   }
 
   /* ---------- judging ---------- */
@@ -768,6 +819,7 @@
   function stop() {
     active = false;
     paused = false;
+    stopMic();
     if (rafId) cancelAnimationFrame(rafId);
     rafId = 0;
     clearTimeout(kickTimer);

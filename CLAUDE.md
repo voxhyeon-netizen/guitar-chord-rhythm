@@ -22,6 +22,7 @@ js/gate.js          접속 코드 잠금 (로컬·같은 와이파이는 묻지 
 js/chords.js        코드 모양 데이터 + 운지 다이어그램 SVG 생성
 js/storage.js       곡 목록 읽기/쓰기(serve.py API), 설정은 localStorage
 js/audio.js         재생 엔진. <audio> 요소 기반 + 효과음용 WAV 생성
+js/mic.js           마이크로 '쳤는지' 듣기. 오디오 스레드에서 RMS 급상승(온셋)을 봄
 js/editor.js        채보 에디터 (파형·비트 그리드·코드 배치)
 js/play.js          연주 화면 (코드 낙하, 판정, 콤보)
 js/main.js          화면 전환, 곡 목록, 설정, 오프라인 저장

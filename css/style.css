@@ -689,3 +689,25 @@ html.bright .note-chip { border-color: rgba(0,0,0,.4); }
 html.bright .gate-card { background: #fff; }
 html.bright .gate-card input { background: #fff; color: #15203a; }
 html.bright .toast { background: #15203a; color: #fff; }
+
+/* ===== 마이크 ===== */
+.mic-setup { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.mic-meter {
+  position: relative; width: 120px; height: 14px; border-radius: 999px;
+  background: rgba(0, 0, 0, .35); overflow: hidden; border: 2px solid var(--line);
+}
+.mic-meter-fill {
+  height: 100%; width: 0%; border-radius: 999px;
+  background: linear-gradient(90deg, var(--good), var(--accent));
+  transition: width .06s linear;
+}
+.mic-hit {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 900; color: #10203a; background: #fff;
+  opacity: 0; transition: opacity .12s;
+}
+.mic-hit.show { opacity: .95; }
+
+/* 연주 화면 표시 — 마이크가 듣고 있다는 것만 작게 */
+.mic-badge { display: flex; align-items: center; gap: 6px; font-size: 15px; }
+.mic-meter.small { width: 64px; height: 10px; border-width: 1px; }
