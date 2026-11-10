@@ -646,6 +646,14 @@
       GMic.setSensitivity(cur.micSens);
     });
     $('setMicTest').addEventListener('click', toggleMicTest);
+    $('setMicChord').addEventListener('change', function () {
+      const cur = GStore.getSettings();
+      cur.micChord = $('setMicChord').checked;
+      GStore.saveSettings(cur);
+      toast(cur.micChord
+        ? '코드가 맞는지까지 봅니다.'
+        : '소리가 제때 났는지만 봅니다.');
+    });
 
     const levelAuto = $('setLevelAuto');
     levelAuto.addEventListener('change', function () {
@@ -679,6 +687,13 @@
       hit.classList.add('show');
       clearTimeout(hit._t);
       hit._t = setTimeout(function () { hit.classList.remove('show'); }, 260);
+      /* 줄이 울린 뒤에 들어야 화음이 잡힙니다 */
+      setTimeout(function () {
+        if (!GMic.isRunning() || !GMic.canMatchChord()) return;
+        const m = GMic.matchChord(null);
+        const box = $('setMicHeard');
+        if (box && m && m.best) box.textContent = m.best + ' 처럼';
+      }, 90);
     });
     GMic.start().then(function () {
       $('setMicTest').textContent = '테스트 멈추기';
@@ -700,6 +715,8 @@
     if (b) { b.textContent = '마이크 테스트'; b.classList.remove('on'); }
     const fill = $('setMicMeterFill');
     if (fill) fill.style.width = '0%';
+    const heard = $('setMicHeard');
+    if (heard) heard.textContent = '';
   }
 
   function micTestLoop() {
@@ -739,7 +756,9 @@
       b.classList.toggle('btn-primary', b.dataset.inputmode === (s.inputMode || 'remote'));
     });
     $('setMicSens').value = s.micSens;
+    $('setMicChord').checked = s.micChord !== false;
     $('setMicRow').style.display = mic ? '' : 'none';
+    $('setMicChordRow').style.display = mic ? '' : 'none';
     /* 마이크가 판정하는 동안에는 '판정 방식'이 쓰이지 않습니다 */
     const jmRow = $('setJudgeModeRow');
     if (jmRow) jmRow.style.display = mic ? 'none' : '';

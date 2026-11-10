@@ -392,7 +392,7 @@
       const n = notes[i];
       const dt = n.t - t;
       if (dt > settings.earlyWindow) break;
-      if (n.state !== 'wait' || dt < -settings.lateWindow) continue;
+      if (n.state !== 'wait' || n.micPending || dt < -settings.lateWindow) continue;
       const d = Math.abs(dt);
       if (d < bestD) { bestD = d; best = n; }
     }
@@ -559,9 +559,28 @@
     /* 칠 차례가 아닐 때 난 소리(반주·잡음)는 그냥 흘려보냅니다 */
     if (!target) return;
     micHits++;
-    const off = Math.abs(target.t - t);
-    applyJudge(target, off <= settings.lateWindow * 0.6 ? 'good' : 'soso', false);
-    flashLane(target.lane, 'good');
+    const onTime = Math.abs(target.t - t) <= settings.lateWindow * 0.6;
+
+    if (!settings.micChord || !global.GMic || !GMic.canMatchChord()) {
+      applyJudge(target, onTime ? 'good' : 'soso', false);
+      flashLane(target.lane, 'good');
+      return;
+    }
+
+    /* 코드까지 볼 때는 줄이 울린 뒤에 들어야 화음이 잡힙니다.
+       그 사이에 같은 코드를 두 번 판정하지 않도록 표시해 둡니다. */
+    target.micPending = true;
+    setTimeout(function () {
+      target.micPending = false;
+      if (!active || finished || target.state !== 'wait') return;
+      const m = GMic.matchChord(target.chord);
+      const ok = !m || m.ok;        // 못 들었으면 깎지 않습니다
+      applyJudge(target, (onTime && ok) ? 'good' : 'soso', false);
+      flashLane(target.lane, ok ? 'good' : 'soso');
+      if (!ok && m && m.best && global.GMain) {
+        GMain.toast(target.chord + ' 자리인데 ' + m.best + ' 처럼 들렸어요.');
+      }
+    }, 90);
   }
 
   /* ---------- judging ---------- */

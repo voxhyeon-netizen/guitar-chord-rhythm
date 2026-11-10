@@ -709,5 +709,7 @@ html.bright .toast { background: #15203a; color: #fff; }
 .mic-hit.show { opacity: .95; }
 
 /* 연주 화면 표시 — 마이크가 듣고 있다는 것만 작게 */
+.mic-heard { font-size: 12px; font-weight: 900; color: var(--accent); min-width: 64px; }
+
 .mic-badge { display: flex; align-items: center; gap: 6px; font-size: 15px; }
 .mic-meter.small { width: 64px; height: 10px; border-width: 1px; }

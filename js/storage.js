@@ -13,6 +13,7 @@
     judgeMode: 'autoGood',   // autoGood = 기본 성공 · 리모컨을 누르면 실패 / manual = 직접 판정
     inputMode: 'remote',     // remote = 리모컨·키보드 / mic = 마이크 소리로 판정
     micSens: 0.5,            // 마이크 민감도 0~1
+    micChord: true,          // 마이크 모드에서 코드가 맞는지까지 볼지
     levelAutoSettings: true, // 난이도에 맞춰 낙하 속도·판정 구간을 자동으로
     theme: 'dark',           // dark = 어두운 화면 / bright = 밝은 화면(빔프로젝터)
     showDiagram: true,
