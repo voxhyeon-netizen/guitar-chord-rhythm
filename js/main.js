@@ -456,6 +456,7 @@
       return;
     }
     lastPlayed = song;
+    stopMicTest();            // 테스트를 켜 둔 채 연주로 넘어가면 버튼이 켜진 채로 남습니다
     GAudio.unlock();          // 아이패드: 누르는 그 순간에 잠금을 풀어야 소리가 납니다
     /* 금방 열리면 안내가 깜빡이기만 해서, 오래 걸릴 때만 보여줍니다 */
     const slow = setTimeout(function () { toast('곡을 준비하고 있어요…'); }, 400);
@@ -706,6 +707,21 @@
     });
   }
 
+  /* 연주 중에 마이크가 꺼지면 설정 버튼만 '테스트 멈추기'로 남습니다 — 실제 상태에 맞춥니다 */
+  function syncMicTestButton() {
+    const b = $('setMicTest');
+    if (!b) return;
+    const on = GMic.isRunning();
+    b.textContent = on ? '테스트 멈추기' : '마이크 테스트';
+    b.classList.toggle('on', on);
+    if (!on) {
+      const fill = $('setMicMeterFill');
+      if (fill) fill.style.width = '0%';
+      const heard = $('setMicHeard');
+      if (heard) heard.textContent = '';
+    }
+  }
+
   function stopMicTest() {
     cancelAnimationFrame(micTestRaf);
     micTestRaf = 0;
@@ -774,6 +790,7 @@
   }
 
   function openSettings() {
+    syncMicTestButton();
     settingsValues();
     el.settingsOverlay.classList.add('show');
   }

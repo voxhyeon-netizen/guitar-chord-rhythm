@@ -22,6 +22,7 @@
   let stats = null;
   let lastTarget = null;
   let micOn = false;            // 마이크로 판정하는 중인가
+  let lastOverrides = null;     // 난이도(쉬움/보통/어려움)로 덮어쓴 값 — 다시 하기에서도 써야 합니다
   let micHits = 0;              // 이번 연주에서 들린 횟수
   let micWarned = false;        // 소리가 안 들어온다고 한 번 알렸는가
   let lastToggleMs = 0;
@@ -103,6 +104,7 @@
     }
     song = s;
     settings = GStore.getSettings();
+    lastOverrides = overrides || null;
     if (overrides) Object.keys(overrides).forEach(function (k) { settings[k] = overrides[k]; });
     /* 마이크가 판정할 때는 '실패' 버튼만 큰 모양이 어색합니다 — 선생님은 고칠 때만 누르니까요 */
     el.bar.classList.toggle('auto-good',
@@ -840,8 +842,9 @@
   function restart() {
     el.pauseOverlay.classList.remove('show');
     const s = song;
+    const ov = lastOverrides;   // stop() 뒤에도 난이도 설정을 그대로 이어갑니다
     stop();
-    start(s);
+    start(s, ov);
   }
 
   function quit() {
