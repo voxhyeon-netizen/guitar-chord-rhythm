@@ -26,6 +26,8 @@
   let saneT = null;             // 마지막으로 믿을 만했던 재생 위치
   let endRetries = 0;           // '끝났다'는 신호를 몇 번 되돌려 봤는가
   let clockFallback = null;     // 소리가 죽었을 때 쓰는 내부 시계
+  let waitingAudio = false;     // 음원이 준비될 때까지 기다리는 중
+  let waitStartMs = 0;
 
   /* ---------- 연주 기록 ----------
      아이패드에서만 생기는 문제를 눈으로 보려고 남깁니다. 진단 페이지에서 볼 수 있습니다. */
@@ -161,6 +163,7 @@
     startMic();
 
     saneT = null;
+    waitingAudio = false;
     endRetries = 0;
     clockFallback = null;
     trace = [];
@@ -197,12 +200,17 @@
     for (let k = beats; k >= 1; k--) pendingTicks.push({ t: -k * spb, n: k });
     leadStartMs = performance.now();
 
-    rec('카운트 ' + leadSec.toFixed(2) + '초 · 음원길이 ' + (GAudio.duration() || 0).toFixed(2) + '초');
+    rec('카운트 ' + leadSec.toFixed(2) + '초 · ' + GAudio.stateText());
     GAudio.onEnd(onAudioEnd);
     GAudio.seek(0);
     GAudio.unlock();
-    /* 아이패드: 누른 직후가 아니면 재생이 막힙니다. 카운트 동안 소리를 끈 채로 돌려둡니다. */
-    GAudio.prime();
+
+    /* 음원이 준비되기 전에 카운트를 시작하면, 재생할 것이 없는 채로 노래가
+       '끝났다' 고 알려와 시작하자마자 끝나버립니다. 준비될 때까지 기다립니다. */
+    waitingAudio = !GAudio.ready();
+    waitStartMs = performance.now();
+    if (waitingAudio) rec('음원 아직 준비 안 됨 — 기다립니다 · ' + GAudio.stateText());
+    else GAudio.prime();   /* 아이패드: 누른 직후에 소리를 끈 채로 돌려둡니다 */
     /* 화면 갱신(rAF)이 멈춰 있어도 연주는 시작되도록 하는 보조 장치 */
     clearTimeout(kickTimer);
     kickTimer = setTimeout(function () {
@@ -291,6 +299,30 @@
     if (!active) return;
     rafId = requestAnimationFrame(loop);
     if (paused) return;
+
+    if (waitingAudio) {
+      if (GAudio.ready()) {
+        waitingAudio = false;
+        leadStartMs = performance.now();     // 준비된 순간부터 카운트를 셉니다
+        GAudio.prime();
+        rec('음원 준비됨 · ' + GAudio.stateText());
+      } else if (!GAudio.hasAudio()) {
+        rec('음원이 아예 비어 있음 · ' + GAudio.stateText());
+        saveTrace('음원이 비어 있어 시작하지 못함');
+        if (global.GMain) GMain.toast('곡을 다시 불러와야 해요. 한 번 더 눌러 주세요.');
+        quit();
+        return;
+      } else if (performance.now() - waitStartMs > 9000) {
+        rec('9초를 기다려도 음원이 준비되지 않음 · ' + GAudio.stateText());
+        saveTrace('음원을 불러오지 못함');
+        if (global.GMain) GMain.toast('곡을 불러오지 못했어요. 한 번 더 눌러 주세요.');
+        quit();
+        return;
+      } else {
+        el.countNum.textContent = '…';
+        return;
+      }
+    }
 
     const t = songTime();
 

@@ -126,6 +126,16 @@
   function isPrimed() { return primed; }
 
   function hasAudio() { return !!(el && el.src); }
+
+  /* 길이를 알고 데이터도 좀 받아둔 상태인가 — 이게 되어야 연주를 시작할 수 있습니다 */
+  function ready() {
+    return !!(el && el.src && isFinite(el.duration) && el.duration > 0);
+  }
+  function stateText() {
+    if (!el) return '요소없음';
+    return 'src' + (el.src ? 'O' : 'X') + ' ready' + el.readyState + ' net' + el.networkState
+      + ' 길이' + (isFinite(el.duration) ? el.duration.toFixed(2) : 'NaN');
+  }
   function duration() { return (el && isFinite(el.duration)) ? el.duration : 0; }
 
   /* ---------- 재생 ---------- */
@@ -480,7 +490,7 @@
   global.GAudio = {
     load: load, hasAudio: hasAudio, duration: duration,
     play: play, pause: pause, stop: stop, seek: seek, now: now, isPlaying: isPlaying,
-    prime: prime, isPrimed: isPrimed,
+    prime: prime, isPrimed: isPrimed, ready: ready, stateText: stateText,
     setRate: setRate, getRate: getRate, setVolume: setVolume, onEnd: onEnd,
     unlock: unlock, resume: resume, state: state, testTone: testTone, tickNow: tickNow,
     ensureDecoded: ensureDecoded, peaks: peaks, sfx: sfx,
