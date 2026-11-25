@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>진단 — 기타 코드 리듬</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: 'Apple SD Gothic Neo', system-ui, sans-serif; background: #121a2e; color: #f4f7ff;
+    padding: 20px 14px 60px; line-height: 1.6; font-weight: 700;
+  }
+  .wrap { max-width: 560px; margin: 0 auto; }
+  h1 { font-size: 22px; text-align: center; margin-bottom: 4px; }
+  .sub { text-align: center; color: #9fb0d4; font-size: 13.5px; margin-bottom: 18px; }
+  button {
+    font: inherit; font-size: 18px; font-weight: 800; width: 100%; padding: 16px;
+    border: 3px solid rgba(0,0,0,.5); border-radius: 14px; cursor: pointer;
+    background: linear-gradient(180deg,#7bed9f,#2ed573); color: #10311d;
+    box-shadow: 0 4px 0 rgba(0,0,0,.35); touch-action: manipulation; margin-bottom: 14px;
+  }
+  button:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(0,0,0,.35); }
+  button.sub2 { background: linear-gradient(180deg,#70a1ff,#1e90ff); color: #fff; font-size: 15px; padding: 12px; }
+  pre {
+    background: #0d1527; border: 2px solid #34477a; border-radius: 12px; padding: 12px;
+    font-size: 13px; line-height: 1.55; white-space: pre-wrap; word-break: break-all;
+    font-family: ui-monospace, Menlo, monospace; font-weight: 600; min-height: 60px;
+  }
+  .hint { color: #9fb0d4; font-size: 13px; margin: 10px 0 16px; }
+  .ok { color: #2ed573; } .bad { color: #ff6b81; }
+  a { color: #ffa502; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🩺 진단</h1>
+  <p class="sub">아래 버튼을 누르고, 나온 내용을 그대로 보여주세요.</p>
+
+  <button id="run">검사 시작</button>
+  <button id="copy" class="sub2">결과 복사하기</button>
+  <p class="hint">
+    소리가 나는지도 함께 봅니다. 검사 중에 노래가 잠깐 들릴 수 있어요.<br />
+    <a href="./">← 게임으로 돌아가기</a>
+  </p>
+
+  <pre id="out">아직 검사하지 않았습니다.</pre>
+</div>
+
+<script>
+const out = document.getElementById('out');
+let lines = [];
+function log(s) { lines.push(s); out.textContent = lines.join('\n'); }
+
+function fmt(v) {
+  if (v === null || v === undefined) return '-';
+  if (typeof v === 'number') return (Math.round(v * 100) / 100) + '';
+  return String(v);
+}
+
+document.getElementById('copy').addEventListener('click', function () {
+  const t = lines.join('\n');
+  if (navigator.clipboard) navigator.clipboard.writeText(t).then(function () { alert('복사했어요. 붙여넣어 보여주세요.'); });
+  else alert('길게 눌러서 글자를 선택해 복사해 주세요.');
+});
+
+document.getElementById('run').addEventListener('click', run);
+
+async function run() {
+  lines = [];
+  log('── 기본 ──');
+  log('주소: ' + location.origin + location.pathname.replace('진단.html', ''));
+  log('브라우저: ' + navigator.userAgent.slice(0, 90));
+  log('안전한 주소(https/localhost): ' + (window.isSecureContext ? '예' : '아니오'));
+
+  /* 서비스워커 (오프라인 저장) */
+  log('');
+  log('── 오프라인 저장 ──');
+  try {
+    const regs = await navigator.serviceWorker.getRegistrations();
+    log('서비스워커 등록: ' + regs.length + '개' + (regs.length ? ' (' + (regs[0].active ? '작동 중' : '대기 중') + ')' : ''));
+    const keys = await caches.keys();
+    log('저장함: ' + (keys.join(', ') || '없음'));
+    for (const k of keys) {
+      const c = await caches.open(k);
+      const all = await c.keys();
+      log('  · ' + k + ' — ' + all.length + '개');
+    }
+  } catch (e) { log('확인 실패: ' + e.message); }
+
+  /* 곡 목록 */
+  log('');
+  log('── 곡 ──');
+  let song = null;
+  try {
+    const r = await fetch('songs/songs.json?cb=' + Date.now());
+    const d = await r.json();
+    const songs = d.songs || [];
+    log('곡 목록: ' + songs.length + '개 (' + r.status + ')');
+    const key = '울면'.normalize('NFC');
+    song = songs.find(function (s) {
+      return (s.title || '').normalize('NFC').indexOf(key) >= 0;
+    }) || songs[0];
+  } catch (e) { log('곡 목록 실패: ' + e.message); }
+  if (!song) { log('검사할 곡이 없습니다.'); return; }
+  log('검사할 곡: ' + song.title + ' (' + song.audio + ')');
+  log('적힌 길이: ' + fmt(song.duration) + '초');
+
+  const url = 'songs/' + song.audio;
+
+  /* 구간 요청 — 아이패드가 음원을 받아오는 방식 */
+  log('');
+  log('── 구간 요청(Range) ──');
+  try {
+    const r1 = await fetch(url, { headers: { Range: 'bytes=0-1' } });
+    log('0-1 요청 → 상태 ' + r1.status + ' (206이어야 정상)');
+    log('  Content-Range: ' + (r1.headers.get('content-range') || '없음'));
+    const b = await r1.arrayBuffer();
+    log('  받은 크기: ' + b.byteLength + '바이트 (2여야 정상)');
+  } catch (e) { log('구간 요청 실패: ' + e.message); }
+  try {
+    const r2 = await fetch(url);
+    const b2 = await r2.arrayBuffer();
+    log('전체 요청 → 상태 ' + r2.status + ', ' + b2.byteLength + '바이트');
+  } catch (e) { log('전체 요청 실패: ' + e.message); }
+
+  /* 실제 재생 */
+  log('');
+  log('── 실제 재생 ──');
+  const a = new Audio();
+  a.preload = 'auto';
+  let endedAt = null;
+  const t0 = Date.now();
+  a.addEventListener('ended', function () { endedAt = (Date.now() - t0) / 1000; });
+  a.addEventListener('error', function () {
+    log('error 발생: code ' + (a.error ? a.error.code : '?') + ' ' + (a.error && a.error.message ? a.error.message : ''));
+  });
+  a.src = url;
+  a.load();
+
+  await new Promise(function (res) {
+    let done = false;
+    function ok() { if (!done) { done = true; res(); } }
+    a.addEventListener('loadedmetadata', ok);
+    a.addEventListener('error', ok);
+    setTimeout(ok, 8000);
+  });
+  log('읽은 길이: ' + fmt(a.duration) + '초' + (isFinite(a.duration) && a.duration > 1 ? ' ✓' : '  ← 이상함'));
+  log('readyState: ' + a.readyState + ' (4에 가까울수록 좋음)');
+  log('networkState: ' + a.networkState);
+
+  let playErr = null;
+  try { await a.play(); } catch (e) { playErr = e.name + ': ' + e.message; }
+  log('재생 시도: ' + (playErr ? '막힘 — ' + playErr : '시작됨'));
+
+  await new Promise(function (r) { setTimeout(r, 2500); });
+  log('2.5초 뒤 위치: ' + fmt(a.currentTime) + '초' + (a.currentTime > 0.5 ? ' ✓' : '  ← 안 흐름'));
+  log('멈춤 상태(paused): ' + a.paused);
+  log('끝났다고 알려옴: ' + (endedAt === null ? '아니오 ✓' : '예 — ' + fmt(endedAt) + '초 만에  ← 이것이 문제'));
+  a.pause();
+
+  log('');
+  log('── 끝 ── 이 내용을 그대로 보여주세요.');
+}
+</script>
+</body>
+</html>
