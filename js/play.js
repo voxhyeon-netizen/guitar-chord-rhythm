@@ -938,7 +938,13 @@
     const dur = GAudio.duration();
     const t = songTime();
     const lastT = notes.length ? notes[notes.length - 1].t : 0;
+    /* 길이도 모르는 채로 '끝났다' 고 하면 가짜입니다 — 절대 끝내지 않습니다 */
     const nearEnd = dur > 0 && t >= Math.min(dur - 2, lastT + 1.5);
+    if (!(dur > 0)) {
+      rec('길이를 모르는 끝 신호 — 무시 (t=' + t.toFixed(2) + ')');
+      if (!clockFallback && audioStarted) clockFallback = { at: performance.now(), t: Math.max(0, t) };
+      return;
+    }
 
     rec('노래가 끝났다는 신호 · t=' + t.toFixed(2) + ' 길이=' + (dur || 0).toFixed(2));
     if (!nearEnd && endRetries < 3) {

@@ -20,6 +20,7 @@
   let seekTarget = null;   // 옮긴 위치를 브라우저가 따라오기 전에도 화면에 바로 반영
   let seekAtMs = 0;        // 그 위치로 옮기라고 말한 시각
   let primed = false;      // 소리를 끈 채로 미리 틀어 두었는가 (아이패드용)
+  let elGen = 0;           // 몇 번째 음원 요소인가 — 지난 요소의 신호를 가려내려고
   const SEEK_WAIT = 1000;  // 브라우저가 따라올 때까지 기다려 주는 시간(ms)
 
   function element() {
@@ -31,22 +32,37 @@
      하나를 계속 돌려쓰면 아이패드에서 이전 곡의 상태가 남아,
      노래를 틀자마자 '끝났다' 고 알려오는 일이 있습니다. */
   function freshElement() {
-    if (el) {
-      try { el.pause(); } catch (e) { /* ignore */ }
-      try { el.removeAttribute('src'); el.load(); } catch (e) { /* ignore */ }
-      if (el.parentNode) el.parentNode.removeChild(el);
+    const old = el;
+    if (old) {
+      try { old.pause(); } catch (e) { /* ignore */ }
+      try { old.removeAttribute('src'); old.load(); } catch (e) { /* ignore */ }
+      if (old.parentNode) old.parentNode.removeChild(old);
     }
-    el = document.createElement('audio');
-    el.preload = 'auto';
-    el.setAttribute('playsinline', '');
-    el.setAttribute('webkit-playsinline', '');
-    el.addEventListener('ended', function () { if (endCb) endCb(); });
-    el.style.display = 'none';
-    (document.body || document.documentElement).appendChild(el);
+
+    const mine = ++elGen;
+    const node = document.createElement('audio');
+    node.preload = 'auto';
+    node.setAttribute('playsinline', '');
+    node.setAttribute('webkit-playsinline', '');
+
+    /* '끝났다' 는 신호를 곧이곧대로 넘기지 않습니다.
+       곡을 바꾸면 이전 음원을 정리하면서 뒤늦게 '끝났다' 가 날아오는데,
+       그걸 그대로 받으면 새 곡이 시작하기도 전에 끝난 것으로 처리됩니다.
+       (아이패드에서 '틀자마자 게임이 끝나던' 원인이 이것이었습니다.) */
+    node.addEventListener('ended', function () {
+      if (node !== el || mine !== elGen) return;                 // 지난 요소가 보낸 것
+      if (!isFinite(node.duration) || node.duration <= 0) return; // 길이도 모르면서 끝났다?
+      if (node.currentTime < node.duration - 1.5) return;         // 아직 끝 근처도 아님
+      if (endCb) endCb();
+    });
+
+    node.style.display = 'none';
+    (document.body || document.documentElement).appendChild(node);
+    el = node;
     lastCt = -1;
     seekTarget = null;
     primed = false;
-    return el;
+    return node;
   }
 
   /* ---------- 불러오기 ---------- */
