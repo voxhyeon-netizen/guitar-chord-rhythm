@@ -12,7 +12,9 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  # 두 번 연달아 올리면 앞의 배포가 취소되면서 '실패' 로 남습니다.
+  # 줄을 세워 둘 다 끝내도록 합니다 (올린 것이 반영 안 되는 일을 막습니다).
+  cancel-in-progress: false
 
 jobs:
   deploy:
