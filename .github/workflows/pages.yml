@@ -24,8 +24,16 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      # 저장소 전체(.git 포함)를 올리면 50MB 가까이 돼서 업로드가 가끔 실패합니다.
+      # 웹에 필요한 것만 따로 모아서 올립니다.
+      - name: 올릴 파일만 모으기
+        run: |
+          mkdir -p _site
+          rsync -a --exclude '.git' --exclude '.github' --exclude '_site' \
+                --exclude '*.command' --exclude 'serve.py' ./ _site/
+          du -sh _site
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: _site
       - id: deployment
         uses: actions/deploy-pages@v4
