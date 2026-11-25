@@ -23,6 +23,8 @@
   let lastTarget = null;
   let micOn = false;            // 마이크로 판정하는 중인가
   let lastOverrides = null;     // 난이도(쉬움/보통/어려움)로 덮어쓴 값 — 다시 하기에서도 써야 합니다
+  let saneT = null;             // 마지막으로 믿을 만했던 재생 위치
+  let endRetried = false;       // '끝났다'는 신호를 한 번 되돌려 봤는가
   let micHits = 0;              // 이번 연주에서 들린 횟수
   let micWarned = false;        // 소리가 안 들어온다고 한 번 알렸는가
   let lastToggleMs = 0;
@@ -143,6 +145,8 @@
 
     startMic();
 
+    saneT = null;
+    endRetried = false;
     stats = { good: 0, soso: 0, miss: 0, skip: 0, score: 0, combo: 0, maxCombo: 0 };
     lastTarget = null;
     el.songName.textContent = song.title || '';
@@ -170,7 +174,7 @@
     for (let k = beats; k >= 1; k--) pendingTicks.push({ t: -k * spb, n: k });
     leadStartMs = performance.now();
 
-    GAudio.onEnd(finish);
+    GAudio.onEnd(onAudioEnd);
     GAudio.seek(0);
     GAudio.unlock();
     /* 화면 갱신(rAF)이 멈춰 있어도 연주는 시작되도록 하는 보조 장치 */
@@ -261,6 +265,15 @@
     if (paused) return;
 
     const t = songTime();
+
+    /* 시계가 앞으로 확 튀면 그 프레임은 통째로 건너뜁니다.
+       브라우저가 옮기기 전 위치(이전 연주의 끝)를 잠깐 더 알려주는 일이 있는데,
+       그대로 받아들이면 모든 코드가 지나간 것으로 처리돼 시작하자마자 끝나버립니다. */
+    if (audioStarted && saneT != null && t - saneT > 1.0) {
+      GAudio.seek(saneT);
+      return;
+    }
+    saneT = t;
 
     if (!audioStarted) {
       while (pendingTicks.length && pendingTicks[0].t <= t) {
@@ -866,6 +879,25 @@
     GAudio.pause();
     notes.forEach(removeNote);
     lastTarget = null;
+  }
+
+  /* 노래가 '끝났다'고 알려와도 곧이곧대로 믿지 않습니다.
+     불러오기가 덜 됐거나 캐시가 깨졌을 때 시작하자마자 끝났다고 알려오는 일이 있는데,
+     그대로 받으면 노래가 시작하자마자 결과 화면이 떠 버립니다. */
+  function onAudioEnd() {
+    if (!active || finished) return;
+    const dur = GAudio.duration();
+    const t = songTime();
+    const lastT = notes.length ? notes[notes.length - 1].t : 0;
+    const nearEnd = dur > 0 && t >= Math.min(dur - 2, lastT + 1.5);
+
+    if (!nearEnd && !endRetried) {
+      endRetried = true;
+      GAudio.play(Math.max(0, t));          // 한 번만 이어 붙여 봅니다
+      if (global.GMain) GMain.toast('소리가 끊겨서 이어 붙였어요.');
+      return;
+    }
+    finish();
   }
 
   function finish() {

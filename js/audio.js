@@ -18,6 +18,8 @@
   let lastCt = -1;
   let lastCtAt = 0;
   let seekTarget = null;   // 옮긴 위치를 브라우저가 따라오기 전에도 화면에 바로 반영
+  let seekAtMs = 0;        // 그 위치로 옮기라고 말한 시각
+  const SEEK_WAIT = 1000;  // 브라우저가 따라올 때까지 기다려 주는 시간(ms)
 
   function element() {
     if (el) return el;
@@ -73,6 +75,7 @@
     if (from != null) {
       const t = Math.max(0, Math.min(from, duration() || from));
       seekTarget = t;
+      seekAtMs = performance.now();
       try { a.currentTime = t; } catch (e) { /* ignore */ }
     }
     a.playbackRate = rate;
@@ -103,6 +106,7 @@
     const a = element();
     const t = Math.max(0, Math.min(sec, duration() || sec));
     seekTarget = t;
+    seekAtMs = performance.now();
     try { a.currentTime = t; } catch (e) { /* ignore */ }
     lastCt = -1;
   }
@@ -112,10 +116,12 @@
     if (!el) return 0;
     const t = el.currentTime || 0;
     if (seekTarget != null) {
-      /* 브라우저가 아직 못 따라왔으면 옮긴 위치를 그대로 보여줍니다 */
+      /* 브라우저가 아직 못 따라왔으면 옮긴 위치를 그대로 보여줍니다.
+         재생 중이라고 해서 바로 포기하면 안 됩니다 — 옮기기 전의 위치(이전 연주의 끝)를
+         한두 프레임 더 알려주는 일이 있고, 그러면 '노래 시작하자마자 끝'이 됩니다. */
       if (Math.abs(t - seekTarget) < 0.3) seekTarget = null;
-      else if (el.paused) return seekTarget;
-      else seekTarget = null;
+      else if (performance.now() - seekAtMs < SEEK_WAIT) return seekTarget;
+      else seekTarget = null;   // 너무 오래 걸리면 포기하고 실제 위치를 씁니다
     }
     if (el.paused) { lastCt = -1; return t; }
     const ms = performance.now();
