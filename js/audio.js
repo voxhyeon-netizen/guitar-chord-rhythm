@@ -24,6 +24,18 @@
 
   function element() {
     if (el) return el;
+    return freshElement();
+  }
+
+  /* 곡을 바꿀 때마다 요소를 새로 만듭니다.
+     하나를 계속 돌려쓰면 아이패드에서 이전 곡의 상태가 남아,
+     노래를 틀자마자 '끝났다' 고 알려오는 일이 있습니다. */
+  function freshElement() {
+    if (el) {
+      try { el.pause(); } catch (e) { /* ignore */ }
+      try { el.removeAttribute('src'); el.load(); } catch (e) { /* ignore */ }
+      if (el.parentNode) el.parentNode.removeChild(el);
+    }
     el = document.createElement('audio');
     el.preload = 'auto';
     el.setAttribute('playsinline', '');
@@ -31,12 +43,15 @@
     el.addEventListener('ended', function () { if (endCb) endCb(); });
     el.style.display = 'none';
     (document.body || document.documentElement).appendChild(el);
+    lastCt = -1;
+    seekTarget = null;
+    primed = false;
     return el;
   }
 
   /* ---------- 불러오기 ---------- */
   function load(src) {
-    const a = element();
+    const a = freshElement();     // 새 요소로 시작합니다
     a.muted = false;
     if (objectUrl) { URL.revokeObjectURL(objectUrl); objectUrl = null; }
     decoded = null;
@@ -77,9 +92,11 @@
     if (!a.src) return Promise.resolve(false);
     a.muted = true;
     a.playbackRate = rate;
-    try { a.currentTime = 0; } catch (e) { /* ignore */ }
-    seekTarget = 0;
-    seekAtMs = performance.now();
+    if ((a.currentTime || 0) > 0.05) {
+      try { a.currentTime = 0; } catch (e) { /* ignore */ }
+      seekTarget = 0;
+      seekAtMs = performance.now();
+    }
     primed = false;
     const p = a.play();
     if (p && p.then) {
@@ -100,9 +117,11 @@
     const a = element();
     if (from != null) {
       const t = Math.max(0, Math.min(from, duration() || from));
-      seekTarget = t;
-      seekAtMs = performance.now();
-      try { a.currentTime = t; } catch (e) { /* ignore */ }
+      if (Math.abs((a.currentTime || 0) - t) > 0.05) {
+        seekTarget = t;
+        seekAtMs = performance.now();
+        try { a.currentTime = t; } catch (e) { /* ignore */ }
+      }
     }
     a.playbackRate = rate;
     a.volume = volume;
@@ -132,6 +151,7 @@
   function seek(sec) {
     const a = element();
     const t = Math.max(0, Math.min(sec, duration() || sec));
+    if (Math.abs((a.currentTime || 0) - t) <= 0.05) return;   // 이미 그 자리
     seekTarget = t;
     seekAtMs = performance.now();
     try { a.currentTime = t; } catch (e) { /* ignore */ }

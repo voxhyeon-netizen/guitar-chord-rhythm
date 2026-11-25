@@ -72,6 +72,11 @@ class Server(socketserver.ThreadingTCPServer):
 
 
 class Handler(http.server.SimpleHTTPRequestHandler):
+    # 연결을 이어서 씁니다. 기본값(HTTP/1.0)은 파일마다 연결을 끊는데,
+    # 브라우저가 그 연결을 다시 쓰려다 끊겨서 파일이 가끔 안 받아집니다
+    # (ERR_CONNECTION_RESET → 곡 목록이 안 뜨거나 화면이 깨짐).
+    protocol_version = 'HTTP/1.1'
+
     def end_headers(self):
         self.send_header('Cache-Control', 'no-store')
         self.send_header('Accept-Ranges', 'bytes')
@@ -127,6 +132,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             if start >= size or start > end:
                 self.send_response(416)
                 self.send_header('Content-Range', f'bytes */{size}')
+                self.send_header('Content-Length', '0')
                 self.end_headers()
                 return True
             end = min(end, size - 1)

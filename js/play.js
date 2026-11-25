@@ -24,7 +24,8 @@
   let micOn = false;            // 마이크로 판정하는 중인가
   let lastOverrides = null;     // 난이도(쉬움/보통/어려움)로 덮어쓴 값 — 다시 하기에서도 써야 합니다
   let saneT = null;             // 마지막으로 믿을 만했던 재생 위치
-  let endRetried = false;       // '끝났다'는 신호를 한 번 되돌려 봤는가
+  let endRetries = 0;           // '끝났다'는 신호를 몇 번 되돌려 봤는가
+  let clockFallback = null;     // 소리가 죽었을 때 쓰는 내부 시계
 
   /* ---------- 연주 기록 ----------
      아이패드에서만 생기는 문제를 눈으로 보려고 남깁니다. 진단 페이지에서 볼 수 있습니다. */
@@ -160,7 +161,8 @@
     startMic();
 
     saneT = null;
-    endRetried = false;
+    endRetries = 0;
+    clockFallback = null;
     trace = [];
     traceFrames = 0;
     traceSaved = false;
@@ -217,6 +219,8 @@
   }
 
   function songTime() {
+    /* 소리가 죽어도 연주는 흘러가야 합니다 */
+    if (clockFallback) return clockFallback.t + (performance.now() - clockFallback.at) / 1000;
     if (audioStarted) return GAudio.now();
     return (performance.now() - leadStartMs) / 1000 - leadSec;
   }
@@ -937,10 +941,22 @@
     const nearEnd = dur > 0 && t >= Math.min(dur - 2, lastT + 1.5);
 
     rec('노래가 끝났다는 신호 · t=' + t.toFixed(2) + ' 길이=' + (dur || 0).toFixed(2));
-    if (!nearEnd && !endRetried) {
-      endRetried = true;
-      GAudio.play(Math.max(0, t));          // 한 번만 이어 붙여 봅니다
-      if (global.GMain) GMain.toast('소리가 끊겨서 이어 붙였어요.');
+    if (!nearEnd && endRetries < 3) {
+      endRetries++;
+      GAudio.play(Math.max(0, t));          // 세 번까지 이어 붙여 봅니다
+      if (global.GMain) {
+        GMain.toast(endRetries === 1
+          ? '소리가 끊겨서 이어 붙였어요.'
+          : '소리가 자꾸 끊겨요 (' + endRetries + '번째). 진단 화면의 기록을 보여주세요.');
+      }
+      return;
+    }
+    if (!nearEnd) {
+      /* 곡 앞부분인데 계속 끝났다고 합니다 — 소리 없이라도 연주는 이어갑니다.
+         여기서 끝내 버리면 '틀자마자 게임이 끝나는' 그 증상이 됩니다. */
+      rec('끝났다는 신호가 계속 옴 — 소리 없이 이어감 (t=' + t.toFixed(2) + ')');
+      if (!clockFallback) clockFallback = { at: performance.now(), t: Math.max(0, t) };
+      if (global.GMain) GMain.toast('소리가 멈췄지만 연주는 이어갑니다.');
       return;
     }
     saveTrace('노래가 끝났다는 신호를 받음');
