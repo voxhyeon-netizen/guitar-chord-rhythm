@@ -68,6 +68,7 @@
     document.addEventListener('keydown', onResultKey);
 
     applyTheme(GStore.getSettings().theme);
+    showVersion();
     updateHomeSub();
     unlockAudioOnFirstTouch();
     setupOffline();
@@ -739,6 +740,22 @@
     if (!GMic.isRunning()) return;
     $('setMicMeterFill').style.width = Math.round(GMic.level() * 100) + '%';
     micTestRaf = requestAnimationFrame(micTestLoop);
+  }
+
+  /* 지금 어느 버전을 보고 있는지 — '고친 게 아이패드에 들어왔나' 를 눈으로 확인하는 곳 */
+  function showVersion() {
+    const tag = document.querySelector('script[src*="main.js"]');
+    const m = tag ? /[?&]v=(\d+)/.exec(tag.getAttribute('src') || '') : null;
+    const ver = $('appVer');
+    if (ver) ver.textContent = m ? m[1] : '?';
+
+    const where = $('appWhere');
+    if (!where) return;
+    const h = location.hostname;
+    where.textContent = /github\.io$/.test(h) ? '웹'
+      : (h === 'localhost' || h === '127.0.0.1') ? '이 맥'
+      : (location.protocol === 'file:') ? '파일로 직접 열림 (곡이 안 보여요)'
+      : h;
   }
 
   /* 홈 소개 문구 — 수업이냐 혼자 연습이냐에 따라 다릅니다 */

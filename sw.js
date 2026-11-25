@@ -1,20 +1,20 @@
 /* 오프라인 캐시 — 한 번 열어두면 인터넷 없이도 연주할 수 있습니다. */
-const SHELL = 'gchord-shell-v25';
+const SHELL = 'gchord-shell-v26';
 const MEDIA = 'gchord-media-v1';
 const SHELL_FILES = [
   './',
   'index.html',
-  'css/style.css?v=25',
-  'js/access-config.js?v=25',
-  'js/gate.js?v=25',
-  'js/chords.js?v=25',
-  'js/strum.js?v=25',
-  'js/storage.js?v=25',
-  'js/audio.js?v=25',
-  'js/editor.js?v=25',
-  'js/mic.js?v=25',
-  'js/play.js?v=25',
-  'js/main.js?v=25',
+  'css/style.css?v=26',
+  'js/access-config.js?v=26',
+  'js/gate.js?v=26',
+  'js/chords.js?v=26',
+  'js/strum.js?v=26',
+  'js/storage.js?v=26',
+  'js/audio.js?v=26',
+  'js/editor.js?v=26',
+  'js/mic.js?v=26',
+  'js/play.js?v=26',
+  'js/main.js?v=26',
 ];
 
 self.addEventListener('install', function (e) {
