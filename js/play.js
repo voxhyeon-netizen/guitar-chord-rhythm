@@ -25,6 +25,20 @@
   let lastOverrides = null;     // 난이도(쉬움/보통/어려움)로 덮어쓴 값 — 다시 하기에서도 써야 합니다
   let saneT = null;             // 마지막으로 믿을 만했던 재생 위치
   let endRetried = false;       // '끝났다'는 신호를 한 번 되돌려 봤는가
+
+  /* ---------- 연주 기록 ----------
+     아이패드에서만 생기는 문제를 눈으로 보려고 남깁니다. 진단 페이지에서 볼 수 있습니다. */
+  let trace = [];
+  let traceFrames = 0;
+  let traceSaved = false;
+  let nextRecT = -999;
+  function rec(line) { if (trace.length < 90) trace.push(line); }
+  function saveTrace(why) {
+    if (traceSaved || !trace.length) return;
+    traceSaved = true;
+    rec('끝난 이유: ' + why);
+    try { localStorage.setItem('gchord.lastRun', JSON.stringify(trace)); } catch (e) { /* ignore */ }
+  }
   let micHits = 0;              // 이번 연주에서 들린 횟수
   let micWarned = false;        // 소리가 안 들어온다고 한 번 알렸는가
   let lastToggleMs = 0;
@@ -147,6 +161,13 @@
 
     saneT = null;
     endRetried = false;
+    trace = [];
+    traceFrames = 0;
+    traceSaved = false;
+    nextRecT = -999;
+    rec('곡: ' + (song.title || '') + ' · 코드 ' + (song.notes || []).length + '개');
+    rec('낙하 ' + settings.scrollSec + '초 · 판정 ' + settings.earlyWindow + '/' + settings.lateWindow
+        + ' · 판정방식 ' + settings.judgeMode + ' · 입력 ' + settings.inputMode);
     stats = { good: 0, soso: 0, miss: 0, skip: 0, score: 0, combo: 0, maxCombo: 0 };
     lastTarget = null;
     el.songName.textContent = song.title || '';
@@ -174,6 +195,7 @@
     for (let k = beats; k >= 1; k--) pendingTicks.push({ t: -k * spb, n: k });
     leadStartMs = performance.now();
 
+    rec('카운트 ' + leadSec.toFixed(2) + '초 · 음원길이 ' + (GAudio.duration() || 0).toFixed(2) + '초');
     GAudio.onEnd(onAudioEnd);
     GAudio.seek(0);
     GAudio.unlock();
@@ -272,10 +294,20 @@
        브라우저가 옮기기 전 위치(이전 연주의 끝)를 잠깐 더 알려주는 일이 있는데,
        그대로 받아들이면 모든 코드가 지나간 것으로 처리돼 시작하자마자 끝나버립니다. */
     if (audioStarted && saneT != null && t - saneT > 1.0) {
+      rec('시계 튐: ' + saneT.toFixed(2) + ' → ' + t.toFixed(2) + ' (되돌림)');
       GAudio.seek(saneT);
       return;
     }
     saneT = t;
+
+    /* 0.5초마다 한 줄씩, 처음 12초까지만 — 문제는 거의 시작하자마자 생깁니다 */
+    if (traceFrames < 30 && t >= nextRecT) {
+      nextRecT = t + 0.5;
+      traceFrames++;
+      rec('t=' + t.toFixed(2) + ' ' + (audioStarted ? '소리켬' : '카운트')
+          + ' 위치=' + GAudio.now().toFixed(2) + (GAudio.isPlaying() ? ' 재생중' : ' 멈춤')
+          + ' 남은코드=' + notes.filter(function (x) { return x.state === 'wait'; }).length);
+    }
 
     if (!audioStarted) {
       while (pendingTicks.length && pendingTicks[0].t <= t) {
@@ -353,7 +385,10 @@
     if (micOn) el.micFill.style.width = Math.round(GMic.level() * 100) + '%';
 
     const last = notes.length ? notes[notes.length - 1] : null;
-    if (last && t > last.t + 1.5 && notes.every(function (x) { return x.state !== 'wait'; })) finish();
+    if (last && t > last.t + 1.5 && notes.every(function (x) { return x.state !== 'wait'; })) {
+      saveTrace('마지막 코드(' + last.t.toFixed(1) + '초)를 지나감 · 그때 t=' + t.toFixed(2));
+      finish();
+    }
   }
 
   function createNote(n, laneW) {
@@ -875,6 +910,7 @@
   }
 
   function stop() {
+    saveTrace('나가거나 멈춤');
     active = false;
     paused = false;
     stopMic();
@@ -900,12 +936,14 @@
     const lastT = notes.length ? notes[notes.length - 1].t : 0;
     const nearEnd = dur > 0 && t >= Math.min(dur - 2, lastT + 1.5);
 
+    rec('노래가 끝났다는 신호 · t=' + t.toFixed(2) + ' 길이=' + (dur || 0).toFixed(2));
     if (!nearEnd && !endRetried) {
       endRetried = true;
       GAudio.play(Math.max(0, t));          // 한 번만 이어 붙여 봅니다
       if (global.GMain) GMain.toast('소리가 끊겨서 이어 붙였어요.');
       return;
     }
+    saveTrace('노래가 끝났다는 신호를 받음');
     finish();
   }
 

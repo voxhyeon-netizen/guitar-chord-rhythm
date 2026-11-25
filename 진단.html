@@ -67,6 +67,16 @@ document.getElementById('run').addEventListener('click', run);
 
 async function run() {
   lines = [];
+
+  /* 지난 연주에서 무슨 일이 있었는지 — 게임이 남겨둔 기록 */
+  log('── 지난 연주 기록 ──');
+  try {
+    const raw = localStorage.getItem('gchord.lastRun');
+    if (!raw) log('(아직 없음 — 게임에서 한 곡 틀어본 뒤 다시 검사하세요)');
+    else JSON.parse(raw).forEach(function (l) { log('  ' + l); });
+  } catch (e) { log('기록 읽기 실패: ' + e.message); }
+
+  log('');
   log('── 기본 ──');
   log('주소: ' + location.origin + location.pathname.replace('진단.html', ''));
   log('브라우저: ' + navigator.userAgent.slice(0, 90));
