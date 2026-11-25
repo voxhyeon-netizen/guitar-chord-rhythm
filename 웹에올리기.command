@@ -135,7 +135,9 @@ else
 fi
 
 echo "웹 페이지 켜는 중…"
-"$GH" api -X POST "repos/${LOGIN}/${REPO}/pages" -f build_type=workflow >/dev/null 2>&1
+# 브랜치에서 바로 배포하게 켭니다. (예전의 'workflow' 방식은 가끔 배포가 통째로 실패했습니다)
+"$GH" api -X POST "repos/${LOGIN}/${REPO}/pages" -f build_type=legacy -f 'source[branch]=main' -f 'source[path]=/' >/dev/null 2>&1
+"$GH" api -X PUT  "repos/${LOGIN}/${REPO}/pages" -f build_type=legacy -f 'source[branch]=main' -f 'source[path]=/' >/dev/null 2>&1
 
 URL="https://${LOGIN}.github.io/${REPO}/"
 echo ""
