@@ -1,20 +1,20 @@
 /* 오프라인 캐시 — 한 번 열어두면 인터넷 없이도 연주할 수 있습니다. */
-const SHELL = 'gchord-shell-v31';
+const SHELL = 'gchord-shell-v32';
 const MEDIA = 'gchord-media-v1';
 const SHELL_FILES = [
   './',
   'index.html',
-  'css/style.css?v=31',
-  'js/access-config.js?v=31',
-  'js/gate.js?v=31',
-  'js/chords.js?v=31',
-  'js/strum.js?v=31',
-  'js/storage.js?v=31',
-  'js/audio.js?v=31',
-  'js/editor.js?v=31',
-  'js/mic.js?v=31',
-  'js/play.js?v=31',
-  'js/main.js?v=31',
+  'css/style.css?v=32',
+  'js/access-config.js?v=32',
+  'js/gate.js?v=32',
+  'js/chords.js?v=32',
+  'js/strum.js?v=32',
+  'js/storage.js?v=32',
+  'js/audio.js?v=32',
+  'js/editor.js?v=32',
+  'js/mic.js?v=32',
+  'js/play.js?v=32',
+  'js/main.js?v=32',
 ];
 
 self.addEventListener('install', function (e) {
@@ -61,9 +61,18 @@ self.addEventListener('fetch', function (e) {
     return;
   }
 
-  /* 음원은 저장해 둔 것 우선 (용량이 크니 한 번만 받습니다) */
+  /* 음원 — 인터넷이 되면 서비스워커를 거치지 않고 그대로 받아오게 둡니다.
+     아이패드(사파리)는 음원을 구간으로 나눠 받는데, 서비스워커가 끼어들면
+     앞부분만 읽고 곡 길이를 0.00초쯤으로 잘못 아는 일이 있습니다.
+     그러면 틀자마자 '끝났다' 가 되어 게임이 바로 끝납니다.
+     인터넷이 안 될 때만 저장해 둔 것을 씁니다. */
   if (isSong) {
-    e.respondWith(handleSong(req));
+    e.respondWith(
+      fetch(req).then(function (res) {
+        if (res && (res.ok || res.status === 206)) return res;
+        return handleSong(req);
+      }).catch(function () { return handleSong(req); })
+    );
     return;
   }
 

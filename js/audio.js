@@ -51,7 +51,7 @@
        (아이패드에서 '틀자마자 게임이 끝나던' 원인이 이것이었습니다.) */
     node.addEventListener('ended', function () {
       if (node !== el || mine !== elGen) return;                 // 지난 요소가 보낸 것
-      if (!isFinite(node.duration) || node.duration <= 0) return; // 길이도 모르면서 끝났다?
+      if (!isFinite(node.duration) || node.duration <= 2) return; // 길이도 제대로 모르면서 끝났다?
       if (node.currentTime < node.duration - 1.5) return;         // 아직 끝 근처도 아님
       if (endCb) endCb();
     });
@@ -129,7 +129,7 @@
 
   /* 길이를 알고 데이터도 좀 받아둔 상태인가 — 이게 되어야 연주를 시작할 수 있습니다 */
   function ready() {
-    return !!(el && el.src && isFinite(el.duration) && el.duration > 0);
+    return !!(el && el.src && isFinite(el.duration) && el.duration > 2);
   }
   function stateText() {
     if (!el) return '요소없음';
