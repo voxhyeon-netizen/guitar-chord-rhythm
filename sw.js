@@ -1,20 +1,20 @@
 /* 오프라인 캐시 — 한 번 열어두면 인터넷 없이도 연주할 수 있습니다. */
-const SHELL = 'gchord-shell-v24';
+const SHELL = 'gchord-shell-v25';
 const MEDIA = 'gchord-media-v1';
 const SHELL_FILES = [
   './',
   'index.html',
-  'css/style.css?v=24',
-  'js/access-config.js?v=24',
-  'js/gate.js?v=24',
-  'js/chords.js?v=24',
-  'js/strum.js?v=24',
-  'js/storage.js?v=24',
-  'js/audio.js?v=24',
-  'js/editor.js?v=24',
-  'js/mic.js?v=24',
-  'js/play.js?v=24',
-  'js/main.js?v=24',
+  'css/style.css?v=25',
+  'js/access-config.js?v=25',
+  'js/gate.js?v=25',
+  'js/chords.js?v=25',
+  'js/strum.js?v=25',
+  'js/storage.js?v=25',
+  'js/audio.js?v=25',
+  'js/editor.js?v=25',
+  'js/mic.js?v=25',
+  'js/play.js?v=25',
+  'js/main.js?v=25',
 ];
 
 self.addEventListener('install', function (e) {
@@ -63,16 +63,7 @@ self.addEventListener('fetch', function (e) {
 
   /* 음원은 저장해 둔 것 우선 (용량이 크니 한 번만 받습니다) */
   if (isSong) {
-    e.respondWith(
-      caches.match(req, { ignoreSearch: true }).then(function (hit) {
-        if (hit) return hit;
-        return fetch(req).then(function (res) {
-          const copy = res.clone();
-          if (res.ok) caches.open(MEDIA).then(function (c) { c.put(req, copy); });
-          return res;
-        });
-      })
-    );
+    e.respondWith(handleSong(req));
     return;
   }
 
@@ -109,4 +100,59 @@ self.addEventListener('fetch', function (e) {
 
 function stripQuery(url) {
   return url.origin + url.pathname;
+}
+
+/* ---------- 음원 ----------
+   아이패드(사파리)는 음원을 통째로 받지 않고 '몇 번째 바이트부터 몇 번째까지' 로 나눠 달라고 합니다(Range).
+   그런데 저장해 둔 파일을 그냥 통째로 돌려주면, 사파리가 그것을 곡 전체로 잘못 읽어
+   노래를 틀자마자 끝난 것으로 처리하는 일이 있습니다.
+   그래서 달라고 한 구간만 잘라 206 으로 돌려줍니다. 맥에서는 원래도 문제가 없었습니다. */
+async function handleSong(req) {
+  const url = new URL(req.url);
+  const key = stripQuery(url);
+  const cache = await caches.open(MEDIA);
+  let hit = await cache.match(key, { ignoreSearch: true });
+
+  if (!hit) {
+    /* 구간 요청이 와도 파일 전체를 받아 저장합니다 — 잘린 응답(206)은 캐시에 넣을 수 없습니다 */
+    let full;
+    try { full = await fetch(key, { cache: 'no-store' }); } catch (err) { full = null; }
+    if (!full || !full.ok) return fetch(req);
+    try { await cache.put(key, full.clone()); } catch (err) { /* 저장 못 해도 재생은 계속 */ }
+    hit = full;
+  }
+  return rangeResponse(hit, req);
+}
+
+async function rangeResponse(res, req) {
+  const range = req.headers.get('range');
+  if (!range) return res;
+
+  const buf = await res.clone().arrayBuffer();
+  const size = buf.byteLength;
+  const m = /bytes=(\d*)-(\d*)/.exec(range);
+  if (!m) return res;
+
+  let start = m[1] ? parseInt(m[1], 10) : NaN;
+  let end = m[2] ? parseInt(m[2], 10) : NaN;
+  if (isNaN(start)) {                 // 'bytes=-500' = 끝에서 500바이트
+    const tail = isNaN(end) ? size : end;
+    start = Math.max(0, size - tail);
+    end = size - 1;
+  }
+  if (isNaN(end) || end >= size) end = size - 1;
+  if (start > end || start >= size) {
+    return new Response(null, { status: 416, headers: { 'Content-Range': 'bytes */' + size } });
+  }
+
+  return new Response(buf.slice(start, end + 1), {
+    status: 206,
+    statusText: 'Partial Content',
+    headers: {
+      'Content-Type': res.headers.get('Content-Type') || 'audio/mpeg',
+      'Content-Range': 'bytes ' + start + '-' + end + '/' + size,
+      'Content-Length': String(end - start + 1),
+      'Accept-Ranges': 'bytes',
+    },
+  });
 }

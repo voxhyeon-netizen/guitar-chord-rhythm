@@ -19,6 +19,7 @@
   let lastCtAt = 0;
   let seekTarget = null;   // 옮긴 위치를 브라우저가 따라오기 전에도 화면에 바로 반영
   let seekAtMs = 0;        // 그 위치로 옮기라고 말한 시각
+  let primed = false;      // 소리를 끈 채로 미리 틀어 두었는가 (아이패드용)
   const SEEK_WAIT = 1000;  // 브라우저가 따라올 때까지 기다려 주는 시간(ms)
 
   function element() {
@@ -61,10 +62,35 @@
       a.addEventListener('loadedmetadata', onMeta);
       a.addEventListener('durationchange', onMeta);
       a.addEventListener('error', onErr);
+      songUnlocked = false;   // src 가 바뀌면 아이패드는 재생 허락을 다시 받아야 합니다
       a.src = url;
       a.load();
     });
   }
+
+  /* 아이패드는 '사용자가 누른 직후' 가 아니면 재생을 막습니다.
+     그런데 카운트(딱딱딱) 때문에 진짜 재생은 2~3초 뒤에야 시작합니다.
+     그래서 누른 직후에 소리를 끈 채로 미리 틀어 둡니다. 멈추지 않고 계속 돌려두면
+     나중에 소리를 켜고 처음으로 되감는 것은 막히지 않습니다. */
+  function prime() {
+    const a = element();
+    if (!a.src) return Promise.resolve(false);
+    a.muted = true;
+    a.playbackRate = rate;
+    try { a.currentTime = 0; } catch (e) { /* ignore */ }
+    seekTarget = 0;
+    seekAtMs = performance.now();
+    primed = false;
+    const p = a.play();
+    if (p && p.then) {
+      return p.then(function () { primed = true; unlocked = true; songUnlocked = true; return true; })
+              .catch(function () { return false; });
+    }
+    primed = true; unlocked = true; songUnlocked = true;
+    return Promise.resolve(true);
+  }
+
+  function isPrimed() { return primed; }
 
   function hasAudio() { return !!(el && el.src); }
   function duration() { return (el && isFinite(el.duration)) ? el.duration : 0; }
@@ -93,6 +119,7 @@
   function pause() {
     unlockToken++;            // 해제 작업이 나중에 끼어들지 않도록
     unlocking = false;
+    primed = false;
     if (el) el.pause();
   }
 
@@ -417,6 +444,7 @@
   global.GAudio = {
     load: load, hasAudio: hasAudio, duration: duration,
     play: play, pause: pause, stop: stop, seek: seek, now: now, isPlaying: isPlaying,
+    prime: prime, isPrimed: isPrimed,
     setRate: setRate, getRate: getRate, setVolume: setVolume, onEnd: onEnd,
     unlock: unlock, resume: resume, state: state, testTone: testTone, tickNow: tickNow,
     ensureDecoded: ensureDecoded, peaks: peaks, sfx: sfx,

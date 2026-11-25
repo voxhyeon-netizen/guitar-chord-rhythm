@@ -177,6 +177,8 @@
     GAudio.onEnd(onAudioEnd);
     GAudio.seek(0);
     GAudio.unlock();
+    /* 아이패드: 누른 직후가 아니면 재생이 막힙니다. 카운트 동안 소리를 끈 채로 돌려둡니다. */
+    GAudio.prime();
     /* 화면 갱신(rAF)이 멈춰 있어도 연주는 시작되도록 하는 보조 장치 */
     clearTimeout(kickTimer);
     kickTimer = setTimeout(function () {
@@ -288,13 +290,20 @@
         audioStarted = true;
         GAudio.play(0);
         el.countOverlay.classList.remove('show');
-        /* 소리가 실제로 시작됐는지 확인하고, 안 되면 알려줍니다 */
+        /* 소리가 실제로 시작됐는지 확인하고, 안 되면 한 번 더 시도합니다 */
         setTimeout(function () {
-          if (active && !paused && !GAudio.isPlaying() && global.GMain) {
-            GAudio.unlock();
-            GAudio.play(songTime());
-            GMain.toast('소리를 시작하지 못했어요. 화면을 한 번 누르고 다시 시도해 주세요.');
-          }
+          if (!active || paused || GAudio.isPlaying()) return;
+          GAudio.unlock();
+          GAudio.prime().then(function () {
+            if (!active || paused) return;
+            GAudio.play(Math.max(0, songTime()));
+            /* 그래도 안 되면 그때 알려줍니다 — 아이패드는 화면을 한 번 눌러야 하는 경우가 있습니다 */
+            setTimeout(function () {
+              if (active && !paused && !GAudio.isPlaying() && global.GMain) {
+                GMain.toast('소리를 시작하지 못했어요. 화면을 한 번 눌러 주세요.');
+              }
+            }, 500);
+          });
         }, 500);
       }
     }

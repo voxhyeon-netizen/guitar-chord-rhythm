@@ -59,6 +59,18 @@ def lan_ip():
         s.close()
 
 
+class Server(socketserver.ThreadingTCPServer):
+    """브라우저는 파일 10여 개를 한꺼번에 달라고 합니다.
+
+    기본 설정은 한 번에 5개만 받아서, 나머지 연결이 끊깁니다
+    (브라우저에는 ERR_CONNECTION_RESET, 화면에는 '곡 목록이 안 뜸' 으로 보입니다).
+    넉넉히 받도록 늘립니다.
+    """
+    daemon_threads = True        # 창을 닫을 때 바로 종료
+    allow_reuse_address = True   # 껐다 켤 때 '포트 사용 중' 안 뜨게
+    request_queue_size = 128
+
+
 class Handler(http.server.SimpleHTTPRequestHandler):
     def end_headers(self):
         self.send_header('Cache-Control', 'no-store')
@@ -254,7 +266,7 @@ def main():
     socketserver.TCPServer.allow_reuse_address = True
     url = f'http://127.0.0.1:{port}/'
     try:
-        httpd = socketserver.ThreadingTCPServer(('0.0.0.0', port), Handler)
+        httpd = Server(('0.0.0.0', port), Handler)
     except OSError:
         if already_running(port):
             print(f'🎸 이미 실행 중입니다 → {url}')
