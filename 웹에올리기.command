@@ -64,6 +64,21 @@ if [ ! -d .git ]; then
   git branch -M main
 fi
 
+# ---- iCloud 가 치워둔 파일 내려받기 ----
+# 바탕화면이 iCloud 와 동기화되면, 한동안 안 쓴 파일은 본체에서 지우고 클라우드에만 둡니다.
+# 그 상태로 올리면 git 이 파일을 못 읽어 'mmap failed: Operation timed out' 으로 끊깁니다.
+if [ -d "$HOME/Library/Mobile Documents/com~apple~CloudDocs" ]; then
+  echo "클라우드에 올려둔 파일을 먼저 내려받는 중…"
+  # 한 번씩 읽어주면 macOS 가 실제 파일을 받아옵니다 (.git 안쪽까지 포함)
+  find . -type f ! -name '.DS_Store' -exec cat {} + >/dev/null 2>&1
+  # 아직 다 못 받은 것이 있으면 조금 기다렸다 한 번 더
+  if find . -name '*.icloud' | grep -q .; then
+    sleep 5
+    find . -name '*.icloud' -print0 2>/dev/null | xargs -0 -I{} true
+    find . -type f ! -name '.DS_Store' -exec cat {} + >/dev/null 2>&1
+  fi
+fi
+
 # mp3 는 용량이 커서 기본 설정으로는 전송이 끊깁니다 (HTTP 400)
 git config http.postBuffer 524288000
 git config http.version HTTP/1.1
@@ -100,8 +115,19 @@ if "$GH" repo view "${LOGIN}/${REPO}" >/dev/null 2>&1; then
   echo "업로드 중… (곡이 많으면 1~2분 걸립니다)"
   git push -u origin main || {
     echo ""
-    echo "한 번 더 시도합니다…"
-    git push -u origin main || die "업로드하지 못했습니다. 인터넷 상태를 확인하고 다시 실행해 주세요."
+    echo "한 번 더 시도합니다… (파일을 다시 내려받는 중)"
+    find . -type f ! -name '.DS_Store' -exec cat {} + >/dev/null 2>&1
+    git push -u origin main || {
+      echo ""
+      echo "──────────────────────────────────────────"
+      echo "  'mmap failed' 나 'remote end hung up' 이 보이면"
+      echo "  인터넷이 아니라 iCloud 때문일 가능성이 큽니다."
+      echo ""
+      echo "  Finder 에서 이 폴더를 오른쪽 클릭 →"
+      echo "  '지금 다운로드 유지' 를 눌러두고 다시 실행해 주세요."
+      echo "──────────────────────────────────────────"
+      die "업로드하지 못했습니다."
+    }
   }
 else
   echo "저장소 만드는 중…"

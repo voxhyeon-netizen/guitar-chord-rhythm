@@ -13,6 +13,12 @@ if [ ! -d .git ]; then
   pause; exit 1
 fi
 
+# iCloud 가 치워둔 파일이 있으면 먼저 내려받습니다 (안 그러면 git 이 읽다가 멈춥니다)
+if [ -d "$HOME/Library/Mobile Documents/com~apple~CloudDocs" ]; then
+  echo "클라우드에 올려둔 파일을 먼저 내려받는 중…"
+  find . -type f ! -name '.DS_Store' -exec cat {} + >/dev/null 2>&1
+fi
+
 git stash -q 2>/dev/null && STASHED=1
 if git pull --rebase origin main; then
   [ "$STASHED" = "1" ] && git stash pop -q 2>/dev/null
