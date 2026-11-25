@@ -133,6 +133,27 @@ async function run() {
     log('전체 요청 → 상태 ' + r2.status + ', ' + b2.byteLength + '바이트');
   } catch (e) { log('전체 요청 실패: ' + e.message); }
 
+  /* 꼬리표가 붙은 주소와 안 붙은 주소를 둘 다 재생해 봅니다 */
+  log('');
+  log('── 주소에 따라 다른가 ──');
+  for (const u of [url, url + '?v=1']) {
+    const a0 = new Audio();
+    a0.preload = 'auto';
+    a0.src = u;
+    a0.load();
+    await new Promise(function (res) {
+      let done = false;
+      function ok() { if (!done) { done = true; res(); } }
+      a0.addEventListener('loadedmetadata', ok);
+      a0.addEventListener('error', ok);
+      setTimeout(ok, 6000);
+    });
+    log((u.indexOf('?') >= 0 ? '꼬리표 있음' : '꼬리표 없음') + ' → 길이 '
+        + (isFinite(a0.duration) ? a0.duration.toFixed(3) : 'NaN')
+        + ' / ready' + a0.readyState + (isFinite(a0.duration) && a0.duration > 2 ? ' ✓' : '  ← 이상함'));
+    a0.removeAttribute('src');
+  }
+
   /* 실제 재생 */
   log('');
   log('── 실제 재생 ──');

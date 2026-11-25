@@ -289,7 +289,10 @@
 
   function audioUrl(song) {
     if (!song || !song.audio) return null;
-    return 'songs/' + encodeURIComponent(song.audio) + '?v=' + (song.updatedAt || 0);
+    /* 꼬리표(?v=)를 붙이지 않습니다.
+       아이패드에서 꼬리표가 붙은 주소로 받으면 곡 길이를 0으로 읽는 일이 있었습니다.
+       파일 이름이 곡마다 다르므로 꼬리표 없이도 섞이지 않습니다. */
+    return 'songs/' + encodeURIComponent(song.audio);
   }
 
   function newId() {

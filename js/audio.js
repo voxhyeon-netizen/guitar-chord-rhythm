@@ -133,8 +133,9 @@
   }
   function stateText() {
     if (!el) return '요소없음';
-    return 'src' + (el.src ? 'O' : 'X') + ' ready' + el.readyState + ' net' + el.networkState
-      + ' 길이' + (isFinite(el.duration) ? el.duration.toFixed(2) : 'NaN');
+    const name = el.src ? decodeURIComponent(el.src).split('/').pop().slice(0, 28) : '없음';
+    return 'src=' + name + ' ready' + el.readyState + ' net' + el.networkState
+      + ' 길이' + (isFinite(el.duration) ? el.duration.toFixed(3) : 'NaN');
   }
   function duration() { return (el && isFinite(el.duration)) ? el.duration : 0; }
 
