@@ -26,8 +26,6 @@
   let saneT = null;             // 마지막으로 믿을 만했던 재생 위치
   let endRetries = 0;           // '끝났다'는 신호를 몇 번 되돌려 봤는가
   let clockFallback = null;     // 소리가 죽었을 때 쓰는 내부 시계
-  let waitingAudio = false;     // 음원이 준비될 때까지 기다리는 중
-  let waitStartMs = 0;
 
   /* ---------- 연주 기록 ----------
      아이패드에서만 생기는 문제를 눈으로 보려고 남깁니다. 진단 페이지에서 볼 수 있습니다. */
@@ -163,7 +161,6 @@
     startMic();
 
     saneT = null;
-    waitingAudio = false;
     endRetries = 0;
     clockFallback = null;
     trace = [];
@@ -195,25 +192,32 @@
     const bpbNow = song.beatsPerBar || 4;
     const setBeats = Math.max(0, parseInt(settings.countInBeats, 10) || 0);
     const beats = setBeats ? Math.max(1, Math.round(setBeats / 4)) * bpbNow : 0;
-    leadSec = Math.max(settings.scrollSec, beats * spb) + 0.3;
-    pendingTicks = [];
-    for (let k = beats; k >= 1; k--) pendingTicks.push({ t: -k * spb, n: k });
-    leadStartMs = performance.now();
 
-    rec('카운트 ' + leadSec.toFixed(2) + '초 · ' + GAudio.stateText());
+    /* 카운트(딱딱딱)를 '노래 시작 전' 이 아니라 '첫 코드 직전' 에 셉니다.
+       노래를 먼저 멈춰 세워 두면 아이패드가 재생을 막습니다 — 버튼을 누른 그 순간
+       바로 틀어야 허락이 떨어집니다. 어차피 곡 앞에는 전주가 있어서 셀 자리는 넉넉합니다. */
+    leadSec = 0;
+    leadStartMs = performance.now();
+    const firstT = notes.length ? notes[0].t : 0;
+    pendingTicks = [];
+    for (let k = beats; k >= 1; k--) {
+      const tt = firstT - k * spb;
+      if (tt > 0.15) pendingTicks.push({ t: tt, n: k });
+    }
+
+    rec('첫 코드 ' + firstT.toFixed(2) + '초 · 카운트 ' + pendingTicks.length + '번 · ' + GAudio.stateText());
     GAudio.onEnd(onAudioEnd);
-    GAudio.seek(0);
     GAudio.unlock();
 
-    /* 음원이 준비되기 전에 카운트를 시작하면, 재생할 것이 없는 채로 노래가
-       '끝났다' 고 알려와 시작하자마자 끝나버립니다. 준비될 때까지 기다립니다. */
-    waitingAudio = !GAudio.ready();
-    waitStartMs = performance.now();
-    if (waitingAudio) rec('음원 아직 준비 안 됨 — 기다립니다 · ' + GAudio.stateText());
-    else if (!GAudio.isPrimed()) GAudio.prime();   /* 아직 안 걸려 있으면 여기서라도 */
+    /* 버튼을 누른 그 순간입니다 — 여기서 바로 틀어야 아이패드가 허락합니다 */
+    audioStarted = true;
+    GAudio.play(0);
+    el.countOverlay.classList.remove('show');
     setTimeout(function () {
-      if (active) rec(GAudio.isPrimed() ? '재생 미리 걸림 ✓' : '재생 미리 걸기 실패 — 눌러서 시작해야 할 수 있음');
-    }, 400);
+      if (!active || paused) return;
+      rec((GAudio.isPlaying() ? '소리 시작됨 ✓ ' : '소리 아직 안 남 ') + GAudio.stateText());
+      if (!GAudio.isPlaying()) { GAudio.unlock(); GAudio.play(Math.max(0, songTime())); }
+    }, 600);
     /* 화면 갱신(rAF)이 멈춰 있어도 연주는 시작되도록 하는 보조 장치 */
     clearTimeout(kickTimer);
     kickTimer = setTimeout(function () {
@@ -303,30 +307,6 @@
     rafId = requestAnimationFrame(loop);
     if (paused) return;
 
-    if (waitingAudio) {
-      if (GAudio.ready()) {
-        waitingAudio = false;
-        leadStartMs = performance.now();     // 준비된 순간부터 카운트를 셉니다
-        GAudio.prime();
-        rec('음원 준비됨 · ' + GAudio.stateText());
-      } else if (!GAudio.hasAudio()) {
-        rec('음원이 아예 비어 있음 · ' + GAudio.stateText());
-        saveTrace('음원이 비어 있어 시작하지 못함');
-        if (global.GMain) GMain.toast('곡을 다시 불러와야 해요. 한 번 더 눌러 주세요.');
-        quit();
-        return;
-      } else if (performance.now() - waitStartMs > 9000) {
-        rec('9초를 기다려도 음원이 준비되지 않음 · ' + GAudio.stateText());
-        saveTrace('음원을 불러오지 못함');
-        if (global.GMain) GMain.toast('곡을 불러오지 못했어요. 한 번 더 눌러 주세요.');
-        quit();
-        return;
-      } else {
-        el.countNum.textContent = '…';
-        return;
-      }
-    }
-
     const t = songTime();
 
     /* 시계가 앞으로 확 튀면 그 프레임은 통째로 건너뜁니다.
@@ -348,33 +328,17 @@
           + ' 남은코드=' + notes.filter(function (x) { return x.state === 'wait'; }).length);
     }
 
-    if (!audioStarted) {
-      while (pendingTicks.length && pendingTicks[0].t <= t) {
-        const tick = pendingTicks.shift();
-        el.countNum.textContent = String(tick.n);
-        el.countNum.style.animation = 'none';
-        void el.countNum.offsetWidth;
-        el.countNum.style.animation = '';
-        GAudio.sfx.tick(pendingTicks.length === 0);
-      }
-      if (t >= 0) {
-        audioStarted = true;
-        GAudio.play(0);
-        el.countOverlay.classList.remove('show');
-        /* 소리가 실제로 시작됐는지 확인하고, 안 되면 한 번 더 시도합니다 */
-        setTimeout(function () {
-          if (!active || paused || GAudio.isPlaying()) return;
-          GAudio.unlock();
-          GAudio.prime().then(function () {
-            if (!active || paused) return;
-            GAudio.play(Math.max(0, songTime()));
-            /* 그래도 안 되면 화면을 눌러 시작할 수 있게 합니다.
-               아이패드는 '사람이 누른 그 순간' 이어야 재생을 허락할 때가 있습니다. */
-            setTimeout(function () {
-              if (active && !paused && !GAudio.isPlaying()) askTap();
-            }, 500);
-          });
-        }, 500);
+    /* 첫 코드 직전에 딱딱딱 — 노래는 이미 흐르고 있습니다 */
+    while (pendingTicks.length && pendingTicks[0].t <= t) {
+      const tick = pendingTicks.shift();
+      el.countNum.textContent = String(tick.n);
+      el.countOverlay.classList.add('show');
+      el.countNum.style.animation = 'none';
+      void el.countNum.offsetWidth;
+      el.countNum.style.animation = '';
+      GAudio.sfx.tick(pendingTicks.length === 0);
+      if (!pendingTicks.length) {
+        setTimeout(function () { el.countOverlay.classList.remove('show'); }, 420);
       }
     }
 
@@ -911,26 +875,6 @@
       /* 기본 성공 방식에서는 리모컨 버튼이 모두 '실패' 입니다 — 못 친 아이만 눌러주세요 */
       if (kind) { e.preventDefault(); judge(settings.judgeMode === 'autoGood' ? 'miss' : kind); }
     }
-  }
-
-  /* 소리가 끝내 시작되지 않을 때 — 화면을 누르면 거기서 시작합니다 */
-  function askTap() {
-    rec('화면을 눌러 달라고 안내 (t=' + songTime().toFixed(2) + ') · ' + GAudio.stateText());
-    el.countOverlay.classList.add('show');
-    el.countNum.textContent = '👆';
-    el.countNum.style.animation = 'none';
-    if (global.GMain) GMain.toast('화면을 한 번 눌러 주세요. 거기서부터 소리가 납니다.');
-
-    function once() {
-      el.screen.removeEventListener('pointerdown', once);
-      el.countOverlay.classList.remove('show');
-      el.countNum.style.animation = '';
-      GAudio.unlock();
-      GAudio.prime();
-      GAudio.play(Math.max(0, songTime()));
-      rec('화면 눌러서 시작 · ' + GAudio.stateText());
-    }
-    el.screen.addEventListener('pointerdown', once);
   }
 
   function togglePause() {

@@ -1,20 +1,20 @@
 /* 오프라인 캐시 — 한 번 열어두면 인터넷 없이도 연주할 수 있습니다. */
-const SHELL = 'gchord-shell-v34';
+const SHELL = 'gchord-shell-v35';
 const MEDIA = 'gchord-media-v2';   // v1 에 잘못 저장된 음원이 있어 새로 시작합니다
 const SHELL_FILES = [
   './',
   'index.html',
-  'css/style.css?v=34',
-  'js/access-config.js?v=34',
-  'js/gate.js?v=34',
-  'js/chords.js?v=34',
-  'js/strum.js?v=34',
-  'js/storage.js?v=34',
-  'js/audio.js?v=34',
-  'js/editor.js?v=34',
-  'js/mic.js?v=34',
-  'js/play.js?v=34',
-  'js/main.js?v=34',
+  'css/style.css?v=35',
+  'js/access-config.js?v=35',
+  'js/gate.js?v=35',
+  'js/chords.js?v=35',
+  'js/strum.js?v=35',
+  'js/storage.js?v=35',
+  'js/audio.js?v=35',
+  'js/editor.js?v=35',
+  'js/mic.js?v=35',
+  'js/play.js?v=35',
+  'js/main.js?v=35',
 ];
 
 self.addEventListener('install', function (e) {
