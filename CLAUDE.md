@@ -65,7 +65,7 @@ GitHub(`voxhyeon-netizen/guitar-chord-rhythm`, 브랜치 `main`)이 둘 사이�
 
 | 프로젝트 | 저장소 주인 |
 |---|---|
-| 기타코드리듬 (이 폴더) | `voxhyeon-netizen` |
+| 비트매니아 (이 폴더) | `voxhyeon-netizen` |
 | 리듬RPG (`~/Desktop/리듬RPG`) | `Hyeon-seok-C` |
 
 맥에는 한 번에 한 계정만 로그인된다. 지금은 `voxhyeon-netizen`.
