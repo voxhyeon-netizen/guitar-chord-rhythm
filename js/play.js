@@ -522,16 +522,49 @@
       col.classList.add('strumbeat');
     }
 
-    /* 판정선에서 퍼지는 파동 */
     const laneW = el.field.clientWidth / Math.max(1, lanes.length);
+    const cx = (lane + 0.5) * laneW;
+    const cc = chord && GChords.colorOf ? GChords.colorOf(chord) : null;
+    const tint = (cc && (cc.main || cc.dark)) || '#ffd97a';
+
+    /* 판정선 자체가 그 코드 색으로 번쩍 */
+    el.line.style.setProperty('--beat', tint);
+
+    const bits = [];
+
+    /* ① 퍼지는 파동 */
     const ring = document.createElement('div');
     ring.className = 'strum-ring' + (strong ? ' strong' : '');
-    ring.style.left = ((lane + 0.5) * laneW) + 'px';
-    ring.style.top = judgeY + 'px';
-    const c = chord && GChords.colorOf ? GChords.colorOf(chord) : null;
-    ring.style.setProperty('--ring', (c && (c.main || c.dark)) || '#ffd97a');
-    el.fx.appendChild(ring);
-    setTimeout(function () { if (ring.parentNode) ring.parentNode.removeChild(ring); }, 650);
+    bits.push(ring);
+
+    /* ② 바닥에서 솟는 빛기둥 */
+    const beam = document.createElement('div');
+    beam.className = 'strum-beam' + (strong ? ' strong' : '');
+    beam.style.width = (laneW * 0.9) + 'px';
+    bits.push(beam);
+
+    /* ③ 튀는 불꽃 — 코드가 바뀌는 첫 스트로크에만 (아이패드가 버거워지지 않게) */
+    const n = strong ? 12 : 0;
+    for (let i = 0; i < n; i++) {
+      const sp = document.createElement('i');
+      sp.className = 'strum-spark';
+      const ang = (-90 + (i - (n - 1) / 2) * (strong ? 15 : 18)) * Math.PI / 180;
+      const dist = (strong ? 110 : 80) + Math.random() * 40;
+      sp.style.setProperty('--dx', Math.round(Math.cos(ang) * dist) + 'px');
+      sp.style.setProperty('--dy', Math.round(Math.sin(ang) * dist) + 'px');
+      sp.style.animationDelay = (Math.random() * 40) + 'ms';
+      bits.push(sp);
+    }
+
+    bits.forEach(function (b) {
+      b.style.left = cx + 'px';
+      b.style.top = judgeY + 'px';
+      b.style.setProperty('--ring', tint);
+      el.fx.appendChild(b);
+    });
+    setTimeout(function () {
+      bits.forEach(function (b) { if (b.parentNode) b.parentNode.removeChild(b); });
+    }, 800);
   }
 
   /* 지금 치는 코드의 그림을 밝게 — 어느 줄을 봐야 하는지 한눈에 */
