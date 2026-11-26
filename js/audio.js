@@ -96,6 +96,16 @@
       songUnlocked = false;   // src 가 바뀌면 아이패드는 재생 허락을 다시 받아야 합니다
       a.src = url;
       a.load();
+
+      /* 아이패드는 '화면을 누른 그 순간' 에 건 재생만 허락합니다.
+         load() 는 곡 버튼을 누른 바로 그 순간에 불리므로, 여기서 소리를 끈 채로
+         재생을 걸어 둡니다. 데이터는 아직 없어도 됩니다 — 받는 대로 흐릅니다.
+         카운트(2~3초)가 끝난 뒤에 재생을 걸면 그때는 이미 허락이 풀려서
+         '소리를 시작하지 못했어요' 가 뜹니다. */
+      a.muted = true;
+      const p0 = a.play();
+      if (p0 && p0.then) p0.then(function () { primed = true; unlocked = true; songUnlocked = true; })
+                           .catch(function () { /* 막히면 나중에 다시 시도합니다 */ });
     });
   }
 

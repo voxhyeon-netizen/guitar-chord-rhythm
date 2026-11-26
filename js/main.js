@@ -458,7 +458,10 @@
     }
     lastPlayed = song;
     stopMicTest();            // 테스트를 켜 둔 채 연주로 넘어가면 버튼이 켜진 채로 남습니다
-    GAudio.unlock();          // 아이패드: 누르는 그 순간에 잠금을 풀어야 소리가 납니다
+    GAudio.unlock();
+    /* 같은 곡을 다시 트는 경우엔 load() 를 거치지 않으므로 여기서 걸어둡니다.
+       누른 그 순간이어야 아이패드가 재생을 허락합니다. */
+    if (loadedAudioId === song.id && GAudio.hasAudio()) GAudio.prime();          // 아이패드: 누르는 그 순간에 잠금을 풀어야 소리가 납니다
     /* 금방 열리면 안내가 깜빡이기만 해서, 오래 걸릴 때만 보여줍니다 */
     const slow = setTimeout(function () { toast('곡을 준비하고 있어요…'); }, 400);
     ensureAudio(song)

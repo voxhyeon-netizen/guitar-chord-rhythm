@@ -210,7 +210,10 @@
     waitingAudio = !GAudio.ready();
     waitStartMs = performance.now();
     if (waitingAudio) rec('음원 아직 준비 안 됨 — 기다립니다 · ' + GAudio.stateText());
-    else GAudio.prime();   /* 아이패드: 누른 직후에 소리를 끈 채로 돌려둡니다 */
+    else if (!GAudio.isPrimed()) GAudio.prime();   /* 아직 안 걸려 있으면 여기서라도 */
+    setTimeout(function () {
+      if (active) rec(GAudio.isPrimed() ? '재생 미리 걸림 ✓' : '재생 미리 걸기 실패 — 눌러서 시작해야 할 수 있음');
+    }, 400);
     /* 화면 갱신(rAF)이 멈춰 있어도 연주는 시작되도록 하는 보조 장치 */
     clearTimeout(kickTimer);
     kickTimer = setTimeout(function () {
@@ -365,11 +368,10 @@
           GAudio.prime().then(function () {
             if (!active || paused) return;
             GAudio.play(Math.max(0, songTime()));
-            /* 그래도 안 되면 그때 알려줍니다 — 아이패드는 화면을 한 번 눌러야 하는 경우가 있습니다 */
+            /* 그래도 안 되면 화면을 눌러 시작할 수 있게 합니다.
+               아이패드는 '사람이 누른 그 순간' 이어야 재생을 허락할 때가 있습니다. */
             setTimeout(function () {
-              if (active && !paused && !GAudio.isPlaying() && global.GMain) {
-                GMain.toast('소리를 시작하지 못했어요. 화면을 한 번 눌러 주세요.');
-              }
+              if (active && !paused && !GAudio.isPlaying()) askTap();
             }, 500);
           });
         }, 500);
@@ -909,6 +911,26 @@
       /* 기본 성공 방식에서는 리모컨 버튼이 모두 '실패' 입니다 — 못 친 아이만 눌러주세요 */
       if (kind) { e.preventDefault(); judge(settings.judgeMode === 'autoGood' ? 'miss' : kind); }
     }
+  }
+
+  /* 소리가 끝내 시작되지 않을 때 — 화면을 누르면 거기서 시작합니다 */
+  function askTap() {
+    rec('화면을 눌러 달라고 안내 (t=' + songTime().toFixed(2) + ') · ' + GAudio.stateText());
+    el.countOverlay.classList.add('show');
+    el.countNum.textContent = '👆';
+    el.countNum.style.animation = 'none';
+    if (global.GMain) GMain.toast('화면을 한 번 눌러 주세요. 거기서부터 소리가 납니다.');
+
+    function once() {
+      el.screen.removeEventListener('pointerdown', once);
+      el.countOverlay.classList.remove('show');
+      el.countNum.style.animation = '';
+      GAudio.unlock();
+      GAudio.prime();
+      GAudio.play(Math.max(0, songTime()));
+      rec('화면 눌러서 시작 · ' + GAudio.stateText());
+    }
+    el.screen.addEventListener('pointerdown', once);
   }
 
   function togglePause() {
