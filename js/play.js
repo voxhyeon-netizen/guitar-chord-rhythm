@@ -373,6 +373,12 @@
         /* 막대의 아래끝이 판정선에 닿는 순간이 '치기 시작' 입니다 */
         const bottom = judgeY * (1 - dt / scrollSec);
         n.elem.style.transform = 'translate3d(0,' + (bottom - n.height).toFixed(1) + 'px,0)';
+        /* 판정선에 닿는 순간 — '지금 쳐!' 가 눈에 띄게 */
+        const atLine = (n.state === 'wait' && dt < 0.14 && dt > -(n.dur || 0.5) * 0.5);
+        if (atLine !== n.atLine) {
+          n.atLine = atLine;
+          n.elem.classList.toggle('atline', atLine);
+        }
       } else if (n.elem) {
         removeNote(n);
       }
@@ -491,21 +497,41 @@
       if (!n.marks || t > n.t + (n.dur || 0.5) + 0.05) continue;
       for (let k = 0; k < n.marks.length; k++) {
         const m = n.marks[k];
-        if (m > prev && m <= t) { pulseLine(n.lane); return; }
+        if (m > prev && m <= t) { pulseLine(n.lane, k === 0, n.chord); return; }
       }
     }
   }
 
-  function pulseLine(lane) {
+  function pulseLine(lane, strong, chord) {
     el.line.classList.remove('pulse');
     void el.line.offsetWidth;
     el.line.classList.add('pulse');
+
     const foot = el.feet.children[lane];
     if (foot) {
       foot.classList.remove('beat');
       void foot.offsetWidth;
       foot.classList.add('beat');
     }
+
+    /* 레인 전체가 한 번 밝아집니다 — 교실 뒤에서도 '지금' 이 보이게 */
+    const col = el.cols.children[lane];
+    if (col) {
+      col.classList.remove('strumbeat');
+      void col.offsetWidth;
+      col.classList.add('strumbeat');
+    }
+
+    /* 판정선에서 퍼지는 파동 */
+    const laneW = el.field.clientWidth / Math.max(1, lanes.length);
+    const ring = document.createElement('div');
+    ring.className = 'strum-ring' + (strong ? ' strong' : '');
+    ring.style.left = ((lane + 0.5) * laneW) + 'px';
+    ring.style.top = judgeY + 'px';
+    const c = chord && GChords.colorOf ? GChords.colorOf(chord) : null;
+    ring.style.setProperty('--ring', (c && (c.main || c.dark)) || '#ffd97a');
+    el.fx.appendChild(ring);
+    setTimeout(function () { if (ring.parentNode) ring.parentNode.removeChild(ring); }, 650);
   }
 
   /* 지금 치는 코드의 그림을 밝게 — 어느 줄을 봐야 하는지 한눈에 */
