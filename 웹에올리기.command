@@ -1,5 +1,5 @@
 #!/bin/bash
-# 기타 코드 리듬 — 웹에 올려서 아이패드 어디서나 쓰기
+# 쿵치타치 — 웹에 올려서 아이패드 어디서나 쓰기
 cd "$(dirname "$0")" || exit 1
 export PATH="/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
 REPO="guitar-chord-rhythm"
@@ -8,7 +8,7 @@ GH_VER="2.63.2"
 pause() { echo ""; read -r -p "Enter 키를 누르면 창을 닫습니다…" _; }
 die()   { echo ""; echo "❌ $1"; pause; exit 1; }
 
-echo "=== 기타 코드 리듬 — 웹에 올리기 ==="
+echo "=== 쿵치타치 — 웹에 올리기 ==="
 echo ""
 echo "곡(songs 폴더)도 함께 올라갑니다."
 PIN=$(sed -n "s/.*pin: *'\([^']*\)'.*/\1/p" js/access-config.js | head -1)
@@ -83,14 +83,14 @@ fi
 git config http.postBuffer 524288000
 git config http.version HTTP/1.1
 git add -A
-if ! git commit -q -m "기타 코드 리듬 업데이트" 2>/dev/null; then
+if ! git commit -q -m "쿵치타치 업데이트" 2>/dev/null; then
   if git diff --cached --quiet; then
     echo "(바뀐 내용 없음)"
   else
     # 커밋할 내용은 있는데 실패 = git 이름/메일이 설정되지 않은 경우
     git config user.name "${LOGIN}"
     git config user.email "${LOGIN}@users.noreply.github.com"
-    git commit -q -m "기타 코드 리듬 업데이트" || die "저장하지 못했습니다."
+    git commit -q -m "쿵치타치 업데이트" || die "저장하지 못했습니다."
   fi
 fi
 

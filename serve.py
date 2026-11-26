@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""기타 코드 리듬 — 로컬 서버 + 곡 저장 API
+"""쿵치타치 — 로컬 서버 + 곡 저장 API
 
 곡(mp3)과 채보는 이 폴더의 songs/ 안에 **파일로** 저장됩니다.
 폴더째 복사하면 곡이 전부 따라갑니다.
@@ -23,7 +23,7 @@ os.chdir(DIR)
 SONGS_DIR = os.path.join(DIR, 'songs')
 MANIFEST = os.path.join(SONGS_DIR, 'songs.json')
 PORT = 8799
-MARKER = '기타 코드 리듬'
+MARKER = '쿵치타치'
 ID_RE = re.compile(r'^[A-Za-z0-9_-]{1,40}$')
 AUDIO_EXT = {'mp3', 'm4a', 'wav', 'ogg', 'aac', 'mp4'}
 MAX_UPLOAD = 60 * 1024 * 1024
@@ -284,7 +284,7 @@ def main():
         sys.exit(1)
 
     ip = lan_ip()
-    print('🎸 기타 코드 리듬 실행 중', flush=True)
+    print('🎸 쿵치타치 실행 중', flush=True)
     print(f'   이 맥에서:  {url}', flush=True)
     if ip:
         print(f'   아이패드에서(같은 와이파이):  http://{ip}:{port}/', flush=True)

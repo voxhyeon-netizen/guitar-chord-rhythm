@@ -1,5 +1,5 @@
 #!/bin/bash
-# 기타 코드 리듬 — 더블클릭으로 실행
+# 쿵치타치 — 더블클릭으로 실행
 DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$DIR"
 export PATH="/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
@@ -13,7 +13,7 @@ if ! command -v python3 >/dev/null 2>&1; then
   exit 1
 fi
 
-echo "🎸 기타 코드 리듬 시작 중…"
+echo "🎸 쿵치타치 시작 중…"
 echo "   (아이패드에서 쓰려면 아래 '아이패드에서' 주소를 Edge 주소창에 입력하세요)"
 python3 "$DIR/serve.py" || {
   echo ""
